@@ -6,3 +6,4 @@ frontend/node_modules/
 frontend/dist/
 *.log
 .DS_Store
+samples/e2e-study-guide.md
