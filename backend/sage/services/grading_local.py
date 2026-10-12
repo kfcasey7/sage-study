@@ -90,11 +90,11 @@ def grade_local(q: dict[str, Any], display: dict[str, Any], response: dict[str, 
 
     if t == "multiple_choice":
         ok = response.get("choice") == q["correct_index"]
-        return _result(100 if ok else 0, "Correct." if ok else "Not quite.", q)
+        return _result(100 if ok else 0, "", q)
 
     if t == "true_false":
         ok = response.get("value") is q["correct"]
-        return _result(100 if ok else 0, "Correct." if ok else "Not quite.", q)
+        return _result(100 if ok else 0, "", q)
 
     if t == "select_all":
         chosen = set(response.get("choices") or [])

@@ -1,8 +1,9 @@
 import { lazy, Suspense } from "react";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AppProvider, useApp } from "./lib/app-context";
 import { Sidebar } from "./components/Sidebar";
 import { ErrorBanner, Loading } from "./components/common";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import NewSession from "./pages/NewSession";
 import Settings from "./pages/Settings";
 import History from "./pages/History";
@@ -13,6 +14,7 @@ const StudyGuide = lazy(() => import("./pages/StudyGuide"));
 
 function Shell() {
   const { settingsError, reloadSettings } = useApp();
+  const location = useLocation();
   return (
     <div className="app">
       <Sidebar />
@@ -20,6 +22,7 @@ function Shell() {
         {settingsError && (
           <div className="page"><ErrorBanner error={settingsError.toBody()} onRetry={() => void reloadSettings()} /></div>
         )}
+        <ErrorBoundary resetKey={location.pathname}>
         <Suspense fallback={<Loading message="Loading…" rotate={false} />}>
           <Routes>
             <Route path="/" element={<NewSession />} />
@@ -30,6 +33,7 @@ function Shell() {
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );
