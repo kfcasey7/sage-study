@@ -26,6 +26,8 @@ export function MermaidDiagram({ code, onError }: { code: string; onError?: (mes
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reported = useRef<string | null>(null);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   useEffect(() => {
     let cancelled = false;
@@ -43,14 +45,14 @@ export function MermaidDiagram({ code, onError }: { code: string; onError?: (mes
         if (!cancelled) {
           setSvg(null);
           setError(msg);
-          if (onError && reported.current !== code) {
+          if (onErrorRef.current && reported.current !== code) {
             reported.current = code;
-            onError(msg);
+            onErrorRef.current(msg);
           }
         }
       });
     return () => { cancelled = true; };
-  }, [code, theme, id, onError]);
+  }, [code, theme, id]);
 
   if (error) {
     return (

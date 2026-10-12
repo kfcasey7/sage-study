@@ -66,6 +66,9 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+/* Grid/flex children default to min-width:auto, which lets Recharts' ResponsiveContainer grow without bound. */
+.grid-2 > *, .grid-3 > *, .score-hero > *, .main, .chart-box { min-width: 0; }
+.chart-box { overflow: hidden; }
 hr.divider { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
 
 /* --- Buttons ------------------------------------------------------------- */
@@ -74,6 +77,7 @@ hr.divider { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.08s, box-shadow 0.15s; white-space: nowrap;
 }
+a.btn, a.badge { text-decoration: none; }
 .btn:hover:not(:disabled) { background: var(--surface-2); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
