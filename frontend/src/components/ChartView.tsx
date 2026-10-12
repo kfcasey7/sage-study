@@ -1,5 +1,5 @@
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Scatter, ScatterChart,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Scatter, ScatterChart,
   Tooltip, XAxis, YAxis,
 } from "recharts";
 import type { ChartSpec } from "../lib/types";
@@ -11,7 +11,9 @@ function isDark() {
   return document.documentElement.dataset.theme === "dark";
 }
 
-/** Renders a study-guide chart spec. Bar charts use point labels as categories. */
+/** Renders a study-guide chart spec. Bar charts use point labels as categories.
+ *  The legend is plain HTML: Recharts' <Legend> inside a ResponsiveContainer can get stuck in a
+ *  measure/resize loop with multi-series charts and freeze the page. */
 export function ChartView({ spec, height = 300 }: { spec: ChartSpec; height?: number }) {
   const colors = isDark() ? PALETTE_DARK : PALETTE;
   const series = spec.series.filter((s) => s.points.length);
@@ -19,7 +21,6 @@ export function ChartView({ spec, height = 300 }: { spec: ChartSpec; height?: nu
   const axisProps = { stroke: "var(--muted)", fontSize: 12, tickLine: false };
   const grid = <CartesianGrid stroke="var(--chart-grid)" strokeDasharray="3 3" />;
   const tooltip = <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)" }} />;
-  const legend = series.length > 1 ? <Legend /> : null;
   const xLabel = spec.x_label ? { value: spec.x_label, position: "insideBottom" as const, offset: -4, fill: "var(--muted)", fontSize: 12 } : undefined;
   const yLabel = spec.y_label ? { value: spec.y_label, angle: -90, position: "insideLeft" as const, fill: "var(--muted)", fontSize: 12 } : undefined;
   const margin = { top: 10, right: 20, bottom: 18, left: 10 };
@@ -34,14 +35,14 @@ export function ChartView({ spec, height = 300 }: { spec: ChartSpec; height?: nu
     });
     chart = (
       <BarChart data={rows} margin={margin}>
-        {grid}<XAxis dataKey="label" {...axisProps} label={xLabel} /><YAxis {...axisProps} label={yLabel} />{tooltip}{legend}
+        {grid}<XAxis dataKey="label" {...axisProps} label={xLabel} /><YAxis {...axisProps} label={yLabel} />{tooltip}
         {series.map((s, i) => <Bar key={s.name} dataKey={s.name} fill={colors[i % colors.length]} radius={[6, 6, 0, 0]} />)}
       </BarChart>
     );
   } else if (spec.chart_type === "scatter") {
     chart = (
       <ScatterChart margin={margin}>
-        {grid}<XAxis type="number" dataKey="x" {...axisProps} label={xLabel} /><YAxis type="number" dataKey="y" {...axisProps} label={yLabel} />{tooltip}{legend}
+        {grid}<XAxis type="number" dataKey="x" {...axisProps} label={xLabel} /><YAxis type="number" dataKey="y" {...axisProps} label={yLabel} />{tooltip}
         {series.map((s, i) => <Scatter key={s.name} name={s.name} data={s.points} fill={colors[i % colors.length]} />)}
       </ScatterChart>
     );
@@ -59,7 +60,7 @@ export function ChartView({ spec, height = 300 }: { spec: ChartSpec; height?: nu
     const Chart = spec.chart_type === "area" ? AreaChart : LineChart;
     chart = (
       <Chart data={rows} margin={margin}>
-        {grid}<XAxis type="number" dataKey="x" domain={["dataMin", "dataMax"]} {...axisProps} label={xLabel} /><YAxis {...axisProps} label={yLabel} />{tooltip}{legend}
+        {grid}<XAxis type="number" dataKey="x" domain={["dataMin", "dataMax"]} {...axisProps} label={xLabel} /><YAxis {...axisProps} label={yLabel} />{tooltip}
         {series.map((s, i) =>
           spec.chart_type === "area"
             ? <Area key={s.name} type="monotone" dataKey={s.name} stroke={colors[i % colors.length]} fill={colors[i % colors.length]} fillOpacity={0.18} connectNulls isAnimationActive={false} />
@@ -71,8 +72,18 @@ export function ChartView({ spec, height = 300 }: { spec: ChartSpec; height?: nu
   return (
     <div>
       {spec.title && <div style={{ fontWeight: 650, textAlign: "center", marginBottom: 6 }}>{spec.title}</div>}
-      <div style={{ width: "100%", height }}>
-        <ResponsiveContainer>{chart}</ResponsiveContainer>
+      {series.length > 1 && (
+        <div className="row small" style={{ justifyContent: "center", gap: 16, marginBottom: 6 }}>
+          {series.map((s, i) => (
+            <span key={s.name} className="row" style={{ gap: 6 }}>
+              <span style={{ width: 12, height: 12, borderRadius: 3, background: colors[i % colors.length], display: "inline-block" }} />
+              {s.name}
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ width: "100%", height, minWidth: 0, overflow: "hidden" }}>
+        <ResponsiveContainer width="100%" height="100%" debounce={50}>{chart}</ResponsiveContainer>
       </div>
     </div>
   );

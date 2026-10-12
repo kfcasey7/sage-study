@@ -7,7 +7,7 @@ import type { HistoryRow } from "../lib/types";
 import { formatDate } from "./common";
 
 export function Sidebar() {
-  const { theme, toggleTheme, historyVersion, settings } = useApp();
+  const { theme, toggleTheme, historyVersion, cli } = useApp();
   const [recent, setRecent] = useState<HistoryRow[]>([]);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export function Sidebar() {
       <NavLink to="/history" className="nav-link"><History size={18} /> History</NavLink>
       <NavLink to="/settings" className="nav-link">
         <SettingsIcon size={18} /> Settings
-        {settings && !settings.key.key_set && <span className="badge warn" style={{ marginLeft: "auto" }}>Key</span>}
+        {cli && !cli.ready && <span className="badge warn" style={{ marginLeft: "auto" }} title={cli.message ?? ""}>Setup</span>}
       </NavLink>
 
       {recent.length > 0 && <div className="sidebar-section">Recent</div>}

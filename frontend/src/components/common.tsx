@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Info, KeyRound, RefreshCw, WifiOff } from "lucide-react";
+import { AlertTriangle, Info, RefreshCw, Terminal, Timer, WifiOff } from "lucide-react";
 import type { ApiErrorBody } from "../lib/types";
 
 export function LeafMark({ size = 46, className = "" }: { size?: number; className?: string }) {
@@ -37,12 +37,10 @@ export function Loading({ message, sub, rotate = true }: { message: string; sub?
 }
 
 const ERROR_TITLES: Record<string, string> = {
-  missing_key: "Add your API key to get started",
-  invalid_key: "API key rejected",
-  permission_denied: "Model not available",
-  model_not_found: "Model not available",
-  billing: "Out of API credits",
-  rate_limited: "Rate limit reached",
+  cli_missing: "Claude Code not found",
+  not_logged_in: "Claude Code isn't logged in",
+  usage_limit: "Claude usage limit reached",
+  cli_error: "Claude Code ran into a problem",
   overloaded: "Claude is busy",
   server_error: "Something went wrong",
   network: "No connection",
@@ -69,19 +67,20 @@ export function ErrorBanner({ error, onRetry, compact }: { error: ApiErrorBody |
     return () => window.clearInterval(t);
   }, [error]);
   if (!error) return null;
-  const keyIssue = ["missing_key", "invalid_key", "permission_denied", "model_not_found", "billing"].includes(error.code);
-  const Icon = keyIssue ? KeyRound : ["network", "app_offline"].includes(error.code) ? WifiOff : AlertTriangle;
-  const canRetry = onRetry && (error.retryable || ["refusal", "invalid_output", "truncated", "missing_key", "invalid_key"].includes(error.code));
+  const setupIssue = ["cli_missing", "not_logged_in"].includes(error.code);
+  const limit = error.code === "usage_limit";
+  const Icon = setupIssue ? Terminal : limit ? Timer : ["network", "app_offline"].includes(error.code) ? WifiOff : AlertTriangle;
+  const canRetry = onRetry && (error.retryable || ["refusal", "invalid_output", "truncated"].includes(error.code));
   return (
-    <div className={`banner ${error.code === "rate_limited" ? "warn" : "error"}`} role="alert">
+    <div className={`banner ${limit ? "warn" : "error"}`} role="alert">
       <Icon size={20} />
       <div className="banner-body">
         <div className="banner-title">{ERROR_TITLES[error.code] ?? "Something went wrong"}</div>
         <div>{error.message}</div>
         {!compact && error.detail && <div className="banner-detail">Details: {error.detail}</div>}
-        {(keyIssue || canRetry) && (
+        {(setupIssue || canRetry) && (
           <div className="row" style={{ marginTop: 10 }}>
-            {keyIssue && <button className="btn sm primary" onClick={() => navigate("/settings")}><KeyRound size={14} /> Open Settings</button>}
+            {setupIssue && <button className="btn sm primary" onClick={() => navigate("/settings")}><Terminal size={14} /> Check Claude Code status</button>}
             {canRetry && (
               <button className="btn sm" onClick={onRetry} disabled={!!countdown}>
                 <RefreshCw size={14} /> {countdown ? `Retry in ${countdown}s` : "Try again"}
@@ -152,8 +151,11 @@ export function formatDateTime(iso: string | null | undefined): string {
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-export function formatCost(usd: number): string {
-  if (usd === 0) return "$0.00";
-  if (usd < 0.01) return "<$0.01";
-  return `$${usd.toFixed(usd < 1 ? 3 : 2)}`;
+export function formatDuration(seconds: number | null | undefined): string {
+  if (seconds == null) return "–";
+  const s = Math.round(seconds);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
 }

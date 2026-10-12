@@ -142,6 +142,11 @@ export default function Quiz() {
         <div>
           <h1>{session?.title || "Study session"}</h1>
           <p>{session?.subject ? `${session.subject} · ` : ""}{session?.config.adaptive ? "Adaptive difficulty · " : ""}{session?.config.feedback_mode === "end" ? "Feedback at the end" : "Feedback after each answer"}</p>
+          {session?.config.docs_truncated && (
+            <p className="small" style={{ color: "var(--partial-text)", marginTop: 4 }}>
+              Your documents are long ({(session.config.doc_chars ?? 0).toLocaleString()} characters), so each question is written from the most relevant excerpts.
+            </p>
+          )}
         </div>
         {progress.answered > 0 && (
           confirmFinish ? (

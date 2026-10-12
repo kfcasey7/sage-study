@@ -92,23 +92,20 @@ CREATE TABLE IF NOT EXISTS study_guides (
     error_json   TEXT,
     created_at   TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS api_calls (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id        TEXT,
-    purpose           TEXT NOT NULL,
-    model             TEXT NOT NULL,
-    input_tokens      INTEGER NOT NULL,
-    output_tokens     INTEGER NOT NULL,
-    cache_write_5m    INTEGER NOT NULL,
-    cache_write_1h    INTEGER NOT NULL,
-    cache_read        INTEGER NOT NULL,
-    cost_usd          REAL NOT NULL,
-    request_id        TEXT,
-    created_at        TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS ai_calls (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id   TEXT,
+    purpose      TEXT NOT NULL,          -- topic_map | generate | grade | study_guide | diagram_repair
+    model        TEXT NOT NULL,          -- CLI alias (haiku, sonnet, opus)
+    duration_ms  INTEGER NOT NULL,
+    ok           INTEGER NOT NULL,       -- 1 = usable result, 0 = failed attempt
+    error_code   TEXT,
+    created_at   TEXT NOT NULL
 );
+DROP TABLE IF EXISTS api_calls;          -- token/cost tracking from the API-key era
 CREATE INDEX IF NOT EXISTS idx_questions_session ON questions(session_id, status);
 CREATE INDEX IF NOT EXISTS idx_answers_session ON answers(session_id);
-CREATE INDEX IF NOT EXISTS idx_api_calls_session ON api_calls(session_id);
+CREATE INDEX IF NOT EXISTS idx_ai_calls_session ON ai_calls(session_id);
 """
 
 _init_lock = threading.Lock()
@@ -196,7 +193,8 @@ def loads(text: str | None, default: Any = None) -> Any:
 
 def get_settings() -> dict[str, Any]:
     stored = {r["key"]: json.loads(r["value"]) for r in query("SELECT key, value FROM settings")}
-    return {**config.DEFAULT_SETTINGS, **stored}
+    # Only known keys: older versions stored API-era settings (model IDs, effort, fallback).
+    return {k: stored.get(k, default) for k, default in config.DEFAULT_SETTINGS.items()}
 
 
 def set_settings(values: dict[str, Any]) -> dict[str, Any]:

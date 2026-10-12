@@ -4,12 +4,17 @@ import {
   Bar, BarChart, CartesianGrid, Cell, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
-import { AlertTriangle, BookOpenCheck, ChevronDown, Coins, Globe, PlusCircle, RefreshCw, Repeat } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, ChevronDown, Clock, Globe, PlusCircle, RefreshCw, Repeat, Sparkles } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, ResultQuestion, Results as ResultsT } from "../lib/types";
-import { ErrorBanner, formatCost, formatDateTime, Loading, ScoreRing, scoreColor, VerdictBadge } from "../components/common";
+import { ErrorBanner, formatDateTime, formatDuration, Loading, ScoreRing, scoreColor, VerdictBadge } from "../components/common";
 import { Markdown } from "../components/Markdown";
+
+const PURPOSE_LABELS: Record<string, string> = {
+  topic_map: "Mapping subtopics", generate: "Writing questions", grade: "Grading answers",
+  study_guide: "Study guide", diagram_repair: "Fixing diagrams",
+};
 
 const tooltipStyle = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)" };
 
@@ -111,6 +116,9 @@ export default function Results() {
       </div>
 
       <ErrorBanner error={error} compact />
+      {data.session.docs_truncated && (
+        <div className="banner info"><AlertTriangle size={20} /><div className="banner-body">Your documents were too long to send in full, so questions and feedback used the most relevant excerpts.</div></div>
+      )}
       {data.ungraded.length > 0 && (
         <div className="banner warn">
           <AlertTriangle size={20} />
@@ -135,9 +143,8 @@ export default function Results() {
               <span>{m.overall.n} questions graded</span>
               {confWrong > 0 && <span className="badge incorrect"><AlertTriangle size={12} /> {confWrong} confidently wrong</span>}
               <span className="spacer" />
-              <span title={`${data.cost.total.calls} API calls · ${data.cost.total.input.toLocaleString()} input, ${data.cost.total.output.toLocaleString()} output, ${data.cost.total.cache_read.toLocaleString()} cached tokens`}>
-                <Coins size={13} style={{ verticalAlign: -2 }} /> Estimated cost {formatCost(data.cost.total.cost)}
-              </span>
+              <span title="Requests sent to Claude Code during this session"><Sparkles size={13} style={{ verticalAlign: -2 }} /> {data.ai.total.calls} AI call{data.ai.total.calls === 1 ? "" : "s"}</span>
+              <span title="Time spent waiting on Claude, and total session length"><Clock size={13} style={{ verticalAlign: -2 }} /> {formatDuration(data.ai.total.seconds)} AI time · {formatDuration(data.session_seconds)} total</span>
             </div>
           </div>
         </div>
@@ -237,20 +244,20 @@ export default function Results() {
       </section>
 
       <details className="card" style={{ marginTop: 18 }}>
-        <summary style={{ cursor: "pointer", fontWeight: 600 }}><Coins size={15} style={{ verticalAlign: -2 }} /> Token usage &amp; cost details</summary>
+        <summary style={{ cursor: "pointer", fontWeight: 600 }}><Sparkles size={15} style={{ verticalAlign: -2 }} /> AI calls &amp; time</summary>
         <table className="data" style={{ marginTop: 12 }}>
-          <thead><tr><th>Step</th><th>Calls</th><th>Input</th><th>Cache write</th><th>Cache read</th><th>Output</th><th>Cost</th></tr></thead>
+          <thead><tr><th>Step</th><th>Calls</th><th>Retried / failed</th><th>Time</th></tr></thead>
           <tbody>
-            {data.cost.by_purpose.map((p) => (
+            {data.ai.by_purpose.map((p) => (
               <tr key={p.purpose}>
-                <td>{p.purpose.replace("_", " ")}</td><td>{p.calls}</td><td>{p.input.toLocaleString()}</td><td>{p.cache_write.toLocaleString()}</td>
-                <td>{p.cache_read.toLocaleString()}</td><td>{p.output.toLocaleString()}</td><td>{formatCost(p.cost)}</td>
+                <td>{PURPOSE_LABELS[p.purpose] ?? p.purpose}</td><td>{p.calls}</td><td>{p.failed}</td><td>{formatDuration(p.seconds)}</td>
               </tr>
             ))}
           </tbody>
         </table>
         <p className="muted small" style={{ marginTop: 10, marginBottom: 0 }}>
-          Estimate based on list prices for {data.session.config.model}. Cached document reads are billed at about a tenth of the normal input price.
+          Questions written with {data.session.config.model_fast ?? "haiku"}; grading and study guide with {data.session.config.model_smart ?? "sonnet"}.
+          Calls run through Claude Code on your subscription, so there's no per-call charge.
         </p>
       </details>
     </div>

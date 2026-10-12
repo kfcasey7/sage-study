@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from .. import db
-from ..claude_client import structured_call
+from ..llm_client import structured_call
 from ..errors import AppError
 from ..prompts.study_guide import diagram_repair_instruction, section_instruction
 from ..schemas.guide import DIAGRAM_REPAIR_SCHEMA, STUDY_SECTION_SCHEMA, DiagramRepair, StudySection
@@ -114,7 +114,7 @@ async def _build_section(session_id: str, subtopic_id: str) -> None:
             instruction=section_instruction(sub, sub["score"], sub["weak_reasons"], _misses_for(res, subtopic_id)),
             schema=STUDY_SECTION_SCHEMA,
             validate=StudySection.model_validate,
-            max_tokens=32000,
+            focus=f'{sub["name"]} {sub.get("description", "")} ' + " ".join(m["prompt"] for m in _misses_for(res, subtopic_id)),
         )
         _update_section(session_id, subtopic_id, status="ready", section=section.model_dump(), error=None)
     except AppError as e:
@@ -167,7 +167,7 @@ async def repair_diagram(session_id: str, subtopic_id: str, error: str) -> dict[
         instruction=diagram_repair_instruction(diagram["mermaid"], error),
         schema=DIAGRAM_REPAIR_SCHEMA,
         validate=DiagramRepair.model_validate,
-        max_tokens=8000,
+        focus=sec["name"],
     )
     section = sec["section"]
     section["diagram"] = {**diagram, "mermaid": fixed.mermaid, "repaired": True}

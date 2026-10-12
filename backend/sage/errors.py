@@ -4,13 +4,11 @@ from __future__ import annotations
 from typing import Any
 
 STATUS_FOR_CODE = {
-    "missing_key": 401,
-    "invalid_key": 401,
-    "permission_denied": 403,
-    "billing": 402,
-    "model_not_found": 404,
+    "cli_missing": 503,
+    "not_logged_in": 401,
+    "usage_limit": 429,
+    "cli_error": 502,
     "not_found": 404,
-    "rate_limited": 429,
     "overloaded": 503,
     "server_error": 502,
     "network": 503,
@@ -40,7 +38,8 @@ class AppError(Exception):
 
     @property
     def retryable(self) -> bool:
-        return self.code in {"rate_limited", "overloaded", "server_error", "network", "timeout", "truncated", "invalid_output"}
+        return self.code in {"usage_limit", "overloaded", "server_error", "network", "timeout", "truncated",
+                             "invalid_output", "cli_error", "not_logged_in", "cli_missing"}
 
     def to_dict(self) -> dict[str, Any]:
         return {

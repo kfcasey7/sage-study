@@ -54,15 +54,28 @@ def answered_items(session_id: str) -> list[dict[str, Any]]:
     return items
 
 
-def cost_summary(session_id: str) -> dict[str, Any]:
+def _seconds_between(start: str | None, end: str | None) -> float | None:
+    if not start or not end:
+        return None
+    from datetime import datetime
+
+    return max(0.0, (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds())
+
+
+def ai_summary(session_id: str) -> dict[str, Any]:
+    """AI calls made and time spent waiting on Claude, overall and per step."""
     rows = db.query(
-        "SELECT purpose, COUNT(*) AS calls, SUM(input_tokens) AS input, SUM(output_tokens) AS output, "
-        "SUM(cache_write_5m + cache_write_1h) AS cache_write, SUM(cache_read) AS cache_read, SUM(cost_usd) AS cost "
-        "FROM api_calls WHERE session_id = ? GROUP BY purpose",
+        "SELECT purpose, COUNT(*) AS calls, SUM(1 - ok) AS failed, SUM(duration_ms) / 1000.0 AS seconds "
+        "FROM ai_calls WHERE session_id = ? GROUP BY purpose ORDER BY MIN(id)",
         (session_id,),
     )
-    total = {k: sum((r[k] or 0) for r in rows) for k in ("calls", "input", "output", "cache_write", "cache_read", "cost")}
-    total["cost"] = round(total["cost"], 4)
+    for r in rows:
+        r["seconds"] = round(r["seconds"] or 0, 1)
+    total = {
+        "calls": sum(r["calls"] for r in rows),
+        "failed": sum(r["failed"] or 0 for r in rows),
+        "seconds": round(sum(r["seconds"] for r in rows), 1),
+    }
     return {"total": total, "by_purpose": rows}
 
 
@@ -97,13 +110,15 @@ def results(session_id: str) -> dict[str, Any]:
             "completed_at": session["completed_at"],
             "status": session["status"],
             "config": {k: v for k, v in session["config"].items() if k != "slots"},
+            "docs_truncated": session["config"].get("docs_truncated", False),
             "parent_session_id": session["parent_session_id"],
         },
         "mastery": mastery,
         "questions": items,
         "missed": [i for i in items if i["verdict"] != "correct" or i["confidently_wrong"]],
         "ungraded": [i["id"] for i in items if i["grade_status"] != "done"],
-        "cost": cost_summary(session_id),
+        "ai": ai_summary(session_id),
+        "session_seconds": _seconds_between(session["created_at"], session["completed_at"]),
         "study_guide_status": guide["status"] if guide else None,
     }
 
@@ -112,7 +127,8 @@ def history() -> list[dict[str, Any]]:
     rows = db.query(
         "SELECT s.id, s.created_at, s.completed_at, s.subject, s.title, s.status, s.score, s.parent_session_id, "
         "s.config_json, (SELECT COUNT(*) FROM answers a WHERE a.session_id = s.id) AS answered, "
-        "(SELECT SUM(cost_usd) FROM api_calls c WHERE c.session_id = s.id) AS cost, "
+        "(SELECT COUNT(*) FROM ai_calls c WHERE c.session_id = s.id) AS ai_calls, "
+        "(SELECT SUM(duration_ms) FROM ai_calls c WHERE c.session_id = s.id) / 1000.0 AS ai_seconds, "
         "(SELECT status FROM study_guides g WHERE g.session_id = s.id) AS guide_status "
         "FROM sessions s ORDER BY s.created_at DESC"
     )
@@ -121,7 +137,8 @@ def history() -> list[dict[str, Any]]:
         cfg = db.loads(r.pop("config_json"), {})
         r["count"] = cfg.get("count")
         r["adaptive"] = cfg.get("adaptive")
-        r["cost"] = round(r["cost"] or 0, 4)
+        r["ai_seconds"] = round(r["ai_seconds"] or 0, 1)
+        r["session_seconds"] = _seconds_between(r["created_at"], r["completed_at"])
         out.append(r)
     return out
 

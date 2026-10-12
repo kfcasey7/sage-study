@@ -1,4 +1,4 @@
-"""Static configuration: paths, models, pricing, question types, difficulty labels."""
+"""Static configuration: paths, Claude Code CLI models, question types, difficulty labels."""
 from __future__ import annotations
 
 import os
@@ -23,32 +23,40 @@ LOG_FILE = DATA_DIR / "sage.log"
 
 PREFERRED_PORT = 8765
 
-KEYRING_SERVICE = APP_ID
-KEYRING_USER = "anthropic_api_key"
+LLM_TMP_DIR = DATA_DIR / "llm_tmp"  # per-call folders of uploaded files the CLI may read
 
-# --- Models -----------------------------------------------------------------
-DEFAULT_MODEL = "claude-sonnet-5-5"
+# --- Claude Code CLI ----------------------------------------------------------------
+# All AI calls go through the locally installed `claude` CLI (Claude Code) in print mode, using
+# the user's Claude subscription login. Model names are the CLI's aliases.
 MODELS = [
-    {"id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "description": "Balanced speed and quality (recommended)"},
-    {"id": "claude-opus-5-5", "label": "Claude Opus 5.5", "description": "Most thorough questions and grading, ~2x cost"},
-    {"id": "claude-haiku-5-5", "label": "Claude Haiku 5.5", "description": "Fastest and cheapest"},
+    {"id": "haiku", "label": "Haiku", "description": "Fastest and lightest on your usage limits"},
+    {"id": "sonnet", "label": "Sonnet", "description": "Careful grading and richer explanations"},
+    {"id": "opus", "label": "Opus", "description": "Most capable; uses your limits fastest (plan permitting)"},
 ]
-# Models that accept the server-side refusal fallback (`fallbacks: "default"`).
-FALLBACK_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
+MODEL_IDS = [m["id"] for m in MODELS]
+DEFAULT_MODEL_FAST = "haiku"    # topic mapping and question writing
+DEFAULT_MODEL_SMART = "sonnet"  # grading written/math/code answers, study guides, diagram repair
 
-EFFORT_LEVELS = ["low", "medium", "high"]
-DEFAULT_EFFORT = "medium"
-
-# USD per million tokens. Cache writes are priced as multiples of input:
-# 1.25x for the 5-minute TTL and 2x for the 1-hour TTL.
-PRICING: dict[str, dict[str, float]] = {
-    "claude-opus-5-5": {"input": 4.00, "output": 20.00, "cache_read": 0.20},
-    "claude-sonnet-5-5": {"input": 2.00, "output": 10.00, "cache_read": 0.20},
-    "claude-haiku-5-5": {"input": 0.10, "output": 0.50, "cache_read": 0.01},
+# Which model tier each task uses.
+TASK_TIER = {
+    "topic_map": "fast",
+    "generate": "fast",
+    "grade": "smart",
+    "study_guide": "smart",
+    "diagram_repair": "smart",
 }
-CACHE_WRITE_5M_MULT = 1.25
-CACHE_WRITE_1H_MULT = 2.0
+# Seconds before a CLI call is killed.
+TASK_TIMEOUT = {"topic_map": 240, "generate": 300, "grade": 180, "study_guide": 420, "diagram_repair": 120}
+MAX_CONCURRENT_CALLS = 2  # be gentle with subscription usage limits
+VALIDATION_RETRIES = 2
+
+# Inline document text budget per call (~4 chars/token). Longer material is chunked and the
+# chunks most relevant to the request are sent.
+DOC_CHAR_BUDGET = 120_000
+CHUNK_CHARS = 4_000
+# A PDF averaging fewer extractable characters per page than this is treated as scanned, and the
+# CLI reads the file itself.
+SCANNED_PDF_CHARS_PER_PAGE = 200
 
 # --- Study settings -----------------------------------------------------------
 DIFFICULTY_LEVELS = {
@@ -84,16 +92,15 @@ CODE_LANGUAGES = ["Python", "C++", "Java", "C", "MATLAB", "JavaScript"]
 
 QUESTION_COUNTS = [5, 10, 15, 20]
 MAX_QUESTIONS = 50
-BATCH_SIZE = 5
-POOL_AHEAD = 2  # non-adaptive: keep at least this many unanswered questions generated
+FIRST_BATCH = 2  # small first batch so the student can start sooner
+BATCH_SIZE = 3
+POOL_AHEAD = 3  # non-adaptive: keep at least this many unanswered questions generated
 
 WEAK_THRESHOLD = 70.0
 CONFIDENTLY_WRONG_SCORE = 50.0
 
 # --- Uploads ----------------------------------------------------------------
 MAX_FILE_MB = 20
-# The Messages API caps a request at 32 MB; base64 inflates binaries by ~4/3.
-MAX_INLINE_BYTES = 22 * 1024 * 1024
 IMAGE_MAX_EDGE = 1568
 SUPPORTED_EXTENSIONS = {
     ".pdf": "pdf",
@@ -108,9 +115,8 @@ SUPPORTED_EXTENSIONS = {
 }
 
 DEFAULT_SETTINGS = {
-    "model": DEFAULT_MODEL,
-    "effort": DEFAULT_EFFORT,
+    "model_fast": DEFAULT_MODEL_FAST,
+    "model_smart": DEFAULT_MODEL_SMART,
     "feedback_mode": "immediate",  # or "end"
     "theme": "light",
-    "fallback_enabled": True,
 }

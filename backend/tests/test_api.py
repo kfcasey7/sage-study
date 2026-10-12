@@ -1,14 +1,14 @@
 """End-to-end API flow against a fake Claude."""
 from __future__ import annotations
 
-import anthropic
-import httpx2 as httpx
 import pytest
 
 from sage import db, desktop
 from sage.services import sessions as S
 
-from .conftest import FakeMessage, FakeText, wait_for
+from sage.errors import AppError
+
+from .conftest import cli_error, cli_result, wait_for
 from .samples import sample
 
 
@@ -74,13 +74,20 @@ def test_guard_rejects_missing_header_and_foreign_host(fake_claude):
         assert c.get("/api/settings").status_code == 403
 
 
-def test_settings_never_expose_key(client):
+def test_settings_models_and_cli_status(client, monkeypatch):
     body = client.get("/api/settings").json()
-    assert body["key"] == {"key_set": True, "source": "env", "last4": "3456"}
-    assert "sk-ant-test-key-123456" not in str(body)
-    r = client.put("/api/settings", json={"model": "claude-haiku-5-5", "feedback_mode": "end", "theme": "dark"})
-    assert r.json()["settings"]["model"] == "claude-haiku-5-5"
-    assert client.put("/api/settings", json={"model": "gpt-4"}).status_code == 400
+    assert body["settings"]["model_fast"] == "haiku" and body["settings"]["model_smart"] == "sonnet"
+    assert "key" not in body and "pricing" not in body["options"]
+    r = client.put("/api/settings", json={"model_fast": "sonnet", "model_smart": "opus", "feedback_mode": "end", "theme": "dark"})
+    assert r.json()["settings"]["model_smart"] == "opus"
+    assert client.put("/api/settings", json={"model_fast": "claude-haiku-5-5"}).status_code == 400
+
+    from sage import llm_client
+
+    async def status(refresh=False):
+        return {"installed": True, "logged_in": True, "ready": True, "refresh": refresh}
+    monkeypatch.setattr(llm_client, "cli_status", status)
+    assert client.get("/api/settings/cli-status?refresh=true").json() == {"installed": True, "logged_in": True, "ready": True, "refresh": True}
 
 
 def test_full_non_adaptive_flow(client, fake_claude):
@@ -104,18 +111,21 @@ def test_full_non_adaptive_flow(client, fake_claude):
     assert res["session"]["status"] == "completed"
     assert res["mastery"]["overall"]["score"] == 100
     assert res["missed"] == []
-    # topic map + 2 generation batches (5 + 2); objective answers never call Claude
-    assert fake_claude.purposes() == ["topic_map", "generate", "generate"]
-    assert res["cost"]["total"]["calls"] == 3 and res["cost"]["total"]["cost"] > 0
-    assert res["cost"]["total"]["cache_read"] > 0
+    # topic map + generation batches of 2, 3, 2 (first batch small, then kept ahead); objective
+    # answers never call Claude
+    assert fake_claude.purposes() == ["topic_map", "generate", "generate", "generate"]
+    batch_sizes = [len(c["req"].schema["properties"]["questions"]["items"].get("anyOf", [0])) for c in fake_claude.calls[1:]]
+    assert batch_sizes  # per-call schema limited to the requested types
+    assert res["ai"]["total"]["calls"] == 4 and res["ai"]["total"]["failed"] == 0 and res["ai"]["total"]["seconds"] > 0
+    assert res["session_seconds"] is not None
+    assert "cost" not in res
 
-    # Every call shares the same cached prefix: system + documents + preamble with a 1h breakpoint.
-    prefixes = [c["params"]["messages"][0]["content"][:-1] for c in fake_claude.calls]
-    assert all(p == prefixes[0] for p in prefixes)
-    assert prefixes[0][-1]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
-    assert prefixes[0][0]["source"]["type"] == "text"
-    assert {c["params"]["output_config"]["effort"] for c in fake_claude.calls} == {"medium"}
-    assert fake_claude.calls[0]["params"]["fallbacks"] == "default"
+    # Topic mapping and question writing use the fast model; document text is inline; no files.
+    reqs = [c["req"] for c in fake_claude.calls]
+    assert {r.model for r in reqs} == {"haiku"}
+    assert all("Heat engines convert heat into work." in r.prompt and "<document title=\"notes.txt\">" in r.prompt for r in reqs)
+    assert all(r.files == [] for r in reqs)
+    assert all(r.prompt.rstrip().endswith("No prose before or after it.") for r in reqs)
 
     assert client.post(f"/api/sessions/{sid}/study-guide").status_code == 400  # nothing weak
 
@@ -143,7 +153,9 @@ def test_claude_graded_answers_and_study_guide(client, fake_claude, tmp_path, mo
     assert len(guide["content"]["sections"]) == len(weak)
     assert all(sec["status"] == "ready" for sec in guide["content"]["sections"])
     guide_calls = [c for c in fake_claude.calls if c["purpose"] == "study_guide"]
-    guide_prompts = [c["params"]["messages"][0]["content"][-1]["text"] for c in guide_calls]
+    guide_prompts = [c["req"].prompt for c in guide_calls]
+    assert {c["req"].model for c in guide_calls} == {"sonnet"}
+    assert {c["req"].model for c in fake_claude.calls if c["purpose"] == "grade"} == {"sonnet"}
     assert any("Student's answer: Some words" in p and "Confuses A and B." in p for p in guide_prompts)
 
     sub_id = guide["content"]["sections"][0]["subtopic_id"]
@@ -211,49 +223,46 @@ def test_validation_retry_then_success(client, fake_claude):
     q = next_q(client, s["id"])
     assert q["state"] == "question"
     gen = [c for c in fake_claude.calls if c["purpose"] == "generate"]
-    assert len(gen) == 2
-    assert "rejected by the validator" in gen[1]["params"]["messages"][0]["content"][-1]["text"]
+    assert len(gen) >= 2  # rejected attempt + corrected retry (the worker may already be on the next batch)
+    assert "rejected by the validator" in gen[1]["req"].prompt
+    assert db.query_one("SELECT COUNT(*) AS n FROM ai_calls WHERE ok = 0 AND error_code = 'invalid_output'")["n"] == 1
 
 
-def test_auth_error_surfaces_and_retry_recovers(client, fake_claude):
-    def boom(params):
-        raise anthropic.AuthenticationError("bad key", response=httpx.Response(401, request=httpx.Request("POST", "https://x")), body=None)
-    fake_claude.queue("topic_map", boom)
+def test_not_logged_in_surfaces_and_retry_recovers(client, fake_claude):
+    fake_claude.queue("topic_map", lambda r: cli_error("Invalid API key · Please run /login"))
     s = create(client)
     r = next_q(client, s["id"])
-    assert r["state"] == "error" and r["error"]["code"] == "invalid_key"
-    assert "rejected" in r["error"]["message"]
+    assert r["state"] == "error" and r["error"]["code"] == "not_logged_in"
+    assert "log in" in r["error"]["message"]
     client.post(f"/api/sessions/{s['id']}/retry")
     assert next_q(client, s["id"])["state"] == "question"
 
 
-def test_rate_limit_and_refusal_mapping(client, fake_claude):
-    def limited(params):
-        raise anthropic.RateLimitError("slow down", response=httpx.Response(429, headers={"retry-after": "30"}, request=httpx.Request("POST", "https://x")), body=None)
-    fake_claude.queue("topic_map", limited)
-    r = next_q(client, create(client)["id"])
-    assert r["error"]["code"] == "rate_limited" and r["error"]["retry_after"] == 30 and r["error"]["retryable"]
+def test_usage_limit_keeps_progress_and_refusal_mapping(client, fake_claude):
+    s = create(client, types=["short_response"], count=2)
+    q = next_q(client, s["id"])["question"]
+    fake_claude.queue("grade", lambda r: cli_error("Claude AI usage limit reached|1760000000", 429))
+    a = client.post(f"/api/questions/{q['id']}/answer", json={"response": {"text": "my answer"}}).json()
+    assert a["grade_status"] == "error" and a["grade_error"]["code"] == "usage_limit" and a["grade_error"]["retryable"]
+    assert "usage limit reached" in a["grade_error"]["message"] and "progress is saved" in a["grade_error"]["message"]
+    # The answer is stored; after the limit resets it can be graded.
+    assert db.query_one("SELECT response_json FROM answers WHERE question_id = ?", (q["id"],))["response_json"] == '{"text": "my answer"}'
+    a = client.post(f"/api/questions/{q['id']}/regrade").json()
+    assert a["grade_status"] == "done"
 
-    fake_claude.queue("topic_map", lambda p: FakeMessage(content=[FakeText("")], stop_reason="refusal"))
+    fake_claude.queue("topic_map", lambda r: {**cli_result({}), "stop_reason": "refusal"})
     r = next_q(client, create(client)["id"])
     assert r["error"]["code"] == "refusal"
 
 
-def test_missing_key(client, monkeypatch):
-    from sage import keystore
-    monkeypatch.setattr(keystore, "get_api_key", lambda: (None, "none"))
-    r = next_q(client, create(client)["id"])
-    assert r["error"]["code"] == "missing_key"
-
-
 def test_grading_error_can_be_retried(client, fake_claude):
-    def boom(params):
-        raise anthropic.APIConnectionError(request=httpx.Request("POST", "https://x"))
+    def boom(req):
+        raise AppError("timeout", "Claude took too long.")
     s = create(client, types=["short_response"], count=1)
     q = next_q(client, s["id"])["question"]
     fake_claude.queue("grade", boom)
     a = client.post(f"/api/questions/{q['id']}/answer", json={"response": {"text": "x"}}).json()
-    assert a["grade_status"] == "error" and a["grade_error"]["code"] == "network"
+    assert a["grade_status"] == "error" and a["grade_error"]["code"] == "timeout"
     a = client.post(f"/api/questions/{q['id']}/regrade").json()
     assert a["grade_status"] == "done" and a["verdict"] == "partial"
 

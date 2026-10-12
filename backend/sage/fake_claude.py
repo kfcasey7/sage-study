@@ -1,11 +1,12 @@
-"""A fake Claude that returns schema-valid canned responses. Used by the test suite, and by
-`SAGE_FAKE_CLAUDE=1 python -m sage.dev` to click through the UI without an API key or cost."""
+"""A fake Claude Code CLI that returns schema-valid canned responses. It replaces
+`llm_client.run_cli`, so everything above it (prompt assembly, validation, retries, call logging)
+still runs. Used by the test suite, and by `SAGE_FAKE_CLAUDE=1 python -m sage.dev` to click through
+the UI without calling Claude."""
 from __future__ import annotations
 
 import copy
 import json
 import re
-from dataclasses import dataclass, field
 from typing import Any, Callable
 
 SLOT_RE = re.compile(r'slot (\d+): type "(\w+)", subtopic_id "(\w+)", difficulty (\d)')
@@ -82,31 +83,19 @@ def sample(type_id: str, **overrides) -> dict:
     return q
 
 
-@dataclass
-class FakeUsage:
-    input_tokens: int = 50
-    output_tokens: int = 400
-    cache_creation_input_tokens: int = 0
-    cache_read_input_tokens: int = 0
-    cache_creation: Any = None
+def cli_result(payload: dict, duration_ms: int = 1200) -> dict:
+    """What `claude -p --output-format json --json-schema ...` prints on success."""
+    return {"type": "result", "subtype": "success", "is_error": False, "num_turns": 2, "duration_ms": duration_ms,
+            "result": json.dumps(payload), "structured_output": payload, "stop_reason": "end_turn"}
 
 
-@dataclass
-class FakeText:
-    text: str
-    type: str = "text"
+def cli_error(message: str, status: int | None = None) -> dict:
+    return {"type": "result", "subtype": "success", "is_error": True, "result": message, "api_error_status": status,
+            "duration_ms": 300}
 
 
-@dataclass
-class FakeMessage:
-    content: list
-    model: str = "claude-sonnet-5-5"
-    stop_reason: str = "end_turn"
-    usage: FakeUsage = field(default_factory=FakeUsage)
-
-
-def purpose_of(params: dict) -> str:
-    props = params["output_config"]["format"]["schema"]["properties"]
+def purpose_of(req) -> str:
+    props = req.schema["properties"]
     if "questions" in props:
         return "generate"
     if "subtopics" in props:
@@ -120,11 +109,11 @@ def purpose_of(params: dict) -> str:
     raise AssertionError(f"unknown schema {list(props)}")
 
 
-def instruction_of(params: dict) -> str:
-    return params["messages"][0]["content"][-1]["text"]
+def instruction_of(req) -> str:
+    return req.prompt
 
 
-def default_response(purpose: str, params: dict, demo: bool = False) -> dict:
+def default_response(purpose: str, params, demo: bool = False) -> dict:
     if purpose == "topic_map":
         return {"title": "Test Session", "summary": "About tests.", "subtopics": [
             {"name": "Alpha", "description": "First"}, {"name": "Beta", "description": "Second"},
@@ -161,35 +150,41 @@ class FakeClaude:
     def __init__(self, demo: bool = False):
         self.demo = demo
         self.calls: list[dict] = []
-        self.overrides: dict[str, list[Callable[[dict], Any]]] = {}
+        self.overrides: dict[str, list[Callable[[Any], Any]]] = {}
 
-    def queue(self, purpose: str, fn: Callable[[dict], Any]) -> None:
-        """Queue a one-shot response (a dict to return, or raise an exception) for the next call."""
+    def queue(self, purpose: str, fn: Callable[[Any], Any]) -> None:
+        """Queue a one-shot response for the next call of that purpose: return a payload dict, a full
+        CLI result dict (see cli_result / cli_error), or raise an AppError."""
         self.overrides.setdefault(purpose, []).append(fn)
 
-    async def send(self, params: dict) -> FakeMessage:
-        purpose = purpose_of(params)
-        self.calls.append({"purpose": purpose, "params": params})
+    async def send(self, req) -> dict:
+        from .llm_client import parse_result
+
+        purpose = purpose_of(req)
+        self.calls.append({"purpose": purpose, "req": req})
         queued = self.overrides.get(purpose)
-        result = queued.pop(0)(params) if queued else default_response(purpose, params, self.demo)
-        if isinstance(result, FakeMessage):
-            return result
+        result = queued.pop(0)(req) if queued else default_response(purpose, req, self.demo)
         if self.demo:
             import asyncio
             await asyncio.sleep(1.5)  # make loading states visible
-        reads = 1000 if len(self.calls) > 1 else 0
-        usage = FakeUsage(cache_read_input_tokens=reads, cache_creation_input_tokens=0 if reads else 1000)
-        return FakeMessage(content=[FakeText(json.dumps(result))], usage=usage, model=params["model"])
+        if isinstance(result, dict) and result.get("type") == "result":
+            return parse_result(0, json.dumps(result), "")
+        return cli_result(result)
 
     def purposes(self) -> list[str]:
         return [c["purpose"] for c in self.calls]
 
 
 def install_demo() -> FakeClaude:
-    """Patch the client so every call is answered by the fake (dev demo mode)."""
-    from . import claude_client, keystore
+    """Patch the CLI layer so every call is answered by the fake (dev demo mode)."""
+    from . import llm_client
 
     fake = FakeClaude(demo=True)
-    claude_client._send = fake.send  # type: ignore[assignment]
-    keystore.get_api_key = lambda: ("sk-ant-demo-mode-0000", "env")  # type: ignore[assignment]
+    llm_client.run_cli = fake.send  # type: ignore[assignment]
+
+    async def ready(refresh: bool = False) -> dict:
+        return {"installed": True, "path": "demo", "version": "demo mode", "logged_in": True, "auth_method": "demo",
+                "subscription": "demo", "ready": True, "message": "Demo mode: canned responses, no Claude calls."}
+
+    llm_client.cli_status = ready  # type: ignore[assignment]
     return fake

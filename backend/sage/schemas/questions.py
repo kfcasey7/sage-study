@@ -73,10 +73,11 @@ def question_json_schema(type_id: str) -> dict[str, Any]:
     return obj({**_base_props(type_id), **TYPE_EXTRA_PROPS[type_id]})
 
 
-def generation_schema() -> dict[str, Any]:
-    """Fixed schema covering all 13 types. Kept identical across calls so the API's compiled-schema
-    cache is reused; the instruction tells Claude which type each slot needs."""
-    return obj({"questions": arr({"anyOf": [question_json_schema(t) for t in TYPE_EXTRA_PROPS]})})
+def generation_schema(types: list[str] | None = None) -> dict[str, Any]:
+    """Schema for a batch of questions, limited to the requested types (all 13 by default)."""
+    wanted = [t for t in TYPE_EXTRA_PROPS if types is None or t in types]
+    item = question_json_schema(wanted[0]) if len(wanted) == 1 else {"anyOf": [question_json_schema(t) for t in wanted]}
+    return obj({"questions": arr(item)})
 
 
 # --- Pydantic models -------------------------------------------------------------

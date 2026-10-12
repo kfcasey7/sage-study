@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, desktop
+from . import config, db, desktop, llm_client
 from .errors import AppError
 from .routers import guide, sessions, settings
 
@@ -20,6 +20,7 @@ ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 
 def create_app() -> FastAPI:
     db.init_db()
+    llm_client.cleanup_tmp()  # remove CLI work folders left behind by a crash
     app = FastAPI(title=config.APP_NAME, version=config.VERSION, docs_url="/api/docs", openapi_url="/api/openapi.json")
 
     @app.middleware("http")

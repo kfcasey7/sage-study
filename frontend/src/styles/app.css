@@ -284,7 +284,7 @@ table.data tr.clickable:hover { background: var(--surface-2); }
 .formula { padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius-sm); margin-bottom: 10px; }
 .formula .katex-display { margin: 0.3em 0; }
 .formula .desc { color: var(--muted); font-size: 0.9rem; }
-.figure { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); }
+.figure { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; background: var(--surface); }
 .figure .caption { text-align: center; color: var(--muted); font-size: 0.88rem; margin-top: 10px; }
 .mermaid-box { display: flex; justify-content: center; overflow-x: auto; }
 .mermaid-box svg { max-width: 100%; height: auto; }

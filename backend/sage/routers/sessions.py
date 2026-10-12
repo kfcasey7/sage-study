@@ -94,7 +94,7 @@ def delete_session(session_id: str) -> dict:
         conn.execute("DELETE FROM subtopics WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM study_guides WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM session_documents WHERE session_id = ?", (session_id,))
-        conn.execute("UPDATE api_calls SET session_id = NULL WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM ai_calls WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
     for uid in upload_ids:
         ingest.delete_upload(uid)  # only removes files no other session uses
@@ -170,7 +170,8 @@ async def retest(session_id: str, body: RetestIn | None = None) -> dict:
         adaptive=cfg["adaptive"],
         count=count,
         language=cfg.get("language", "Python"),
-        settings={**db.get_settings(), "model": cfg["model"], "effort": cfg["effort"]},
+        settings={**db.get_settings(), "model_fast": cfg.get("model_fast", config.DEFAULT_MODEL_FAST),
+                  "model_smart": cfg.get("model_smart", config.DEFAULT_MODEL_SMART)},
         subtopics=[{"name": s["name"], "description": s["description"]} for s in weak],
         parent_session_id=session_id,
     )

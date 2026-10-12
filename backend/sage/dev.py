@@ -2,7 +2,7 @@
 
     python -m sage.dev            # serves the built frontend + API on http://127.0.0.1:8765
     cd frontend && npm run dev    # optional: Vite dev server with hot reload, proxying /api
-    SAGE_FAKE_CLAUDE=1 python -m sage.dev   # demo mode: canned responses, no API key or cost
+    SAGE_FAKE_CLAUDE=1 python -m sage.dev   # demo mode: canned responses, no Claude Code calls
 """
 from __future__ import annotations
 

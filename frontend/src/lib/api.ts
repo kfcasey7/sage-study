@@ -1,6 +1,6 @@
 import type {
-  AnswerView, ApiErrorBody, Confidence, HistoryRow, NextResponse, Results, SessionView, SettingsPayload, StudyGuide,
-  StudySection, Trends, UploadInfo,
+  AnswerView, ApiErrorBody, CliStatus, Confidence, HistoryRow, NextResponse, Results, SessionView, SettingsPayload,
+  StudyGuide, StudySection, Trends, UploadInfo,
 } from "./types";
 
 export class ApiError extends Error {
@@ -53,9 +53,7 @@ const del = <T,>(p: string) => request<T>("DELETE", p);
 export const api = {
   settings: () => get<SettingsPayload>("/api/settings"),
   updateSettings: (s: Partial<SettingsPayload["settings"]>) => put<SettingsPayload>("/api/settings", s),
-  setKey: (api_key: string) => put<SettingsPayload>("/api/settings/api-key", { api_key }),
-  deleteKey: () => del<SettingsPayload>("/api/settings/api-key"),
-  testKey: () => post<{ ok: boolean }>("/api/settings/test-key"),
+  cliStatus: (refresh = false) => get<CliStatus>(`/api/settings/cli-status${refresh ? "?refresh=true" : ""}`),
 
   upload: (file: File) => {
     const fd = new FormData();

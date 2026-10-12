@@ -5,8 +5,8 @@ from collections import OrderedDict
 from typing import Any
 
 from .. import config, db, ingest
-from ..claude_client import CallContext
 from ..errors import AppError
+from ..llm_client import CallContext
 from ..prompts.system import material_preamble
 
 
@@ -70,34 +70,31 @@ def progress(session_id: str) -> dict[str, int]:
     return dict(s)  # type: ignore[arg-type]
 
 
-# Base64-encoding large PDFs on every call is wasteful; keep a few sessions' blocks in memory.
-_prefix_cache: OrderedDict[str, list[dict[str, Any]]] = OrderedDict()
-_PREFIX_CACHE_SIZE = 4
+# Reading extracted text from disk for every call is cheap, but keep a few sessions' material loaded.
+_material_cache: OrderedDict[str, ingest.Material] = OrderedDict()
+_MATERIAL_CACHE_SIZE = 4
 
 
 def call_context(session: dict[str, Any]) -> CallContext:
     sid = session["id"]
-    blocks = _prefix_cache.get(sid)
-    if blocks is None:
-        uploads = get_uploads(sid)
-        blocks = ingest.content_blocks(uploads)
-        preamble = material_preamble(session["material"], session["subject"], bool(uploads))
-        # The breakpoint goes on the last block shared by every call in the session.
-        blocks.append({"type": "text", "text": preamble, "cache_control": {"type": "ephemeral", "ttl": "1h"}})
-        _prefix_cache[sid] = blocks
-        while len(_prefix_cache) > _PREFIX_CACHE_SIZE:
-            _prefix_cache.popitem(last=False)
+    material = _material_cache.get(sid)
+    if material is None:
+        material = ingest.load_material(get_uploads(sid))
+        _material_cache[sid] = material
+        while len(_material_cache) > _MATERIAL_CACHE_SIZE:
+            _material_cache.popitem(last=False)
     else:
-        _prefix_cache.move_to_end(sid)
+        _material_cache.move_to_end(sid)
     cfg = session["config"]
+    has_docs = bool(material.texts or material.files)
     return CallContext(
         session_id=sid,
-        model=cfg.get("model", config.DEFAULT_MODEL),
-        effort=cfg.get("effort", config.DEFAULT_EFFORT),
-        fallback=cfg.get("fallback", True),
-        prefix_blocks=blocks,
+        model_fast=cfg.get("model_fast", config.DEFAULT_MODEL_FAST),
+        model_smart=cfg.get("model_smart", config.DEFAULT_MODEL_SMART),
+        material=material,
+        preamble=material_preamble(session["material"], session["subject"], has_docs),
     )
 
 
 def forget_context(session_id: str) -> None:
-    _prefix_cache.pop(session_id, None)
+    _material_cache.pop(session_id, None)

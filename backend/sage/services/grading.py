@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from .. import config, db
-from ..claude_client import structured_call
+from ..llm_client import structured_call
 from ..errors import AppError
 from ..prompts.grade import grading_instruction
 from ..schemas.guide import GRADE_SCHEMA, GradeOut
@@ -49,7 +49,7 @@ async def grade_with_claude(question_id: str) -> None:
             instruction=grading_instruction(q["payload"], answer_text),
             schema=GRADE_SCHEMA,
             validate=GradeOut.model_validate,
-            max_tokens=16000,
+            focus=f'{q["display"].get("subtopic_name", "")} {q["payload"]["prompt"]}',
         )
     except AppError as e:
         db.update("answers", "question_id", question_id, {"grade_status": "error", "grade_error": db.dumps(e.to_dict())})

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, asApiError, type ApiError } from "./api";
-import type { SettingsPayload } from "./types";
+import type { CliStatus, SettingsPayload } from "./types";
 
 interface Toast { id: number; message: string; tone: "info" | "success" | "error" }
 
@@ -9,6 +9,8 @@ interface AppState {
   settingsError: ApiError | null;
   reloadSettings: () => Promise<void>;
   setSettings: (s: SettingsPayload) => void;
+  cli: CliStatus | null;
+  refreshCli: (force?: boolean) => Promise<CliStatus | null>;
   theme: "light" | "dark";
   toggleTheme: () => void;
   toast: (message: string, tone?: Toast["tone"]) => void;
@@ -29,6 +31,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">(() => (document.documentElement.dataset.theme as "light" | "dark") || "light");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [historyVersion, setHistoryVersion] = useState(0);
+  const [cli, setCli] = useState<CliStatus | null>(null);
+
+  const refreshCli = useCallback(async (force = false) => {
+    try {
+      const s = await api.cliStatus(force);
+      setCli(s);
+      return s;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => { void refreshCli(); }, [refreshCli]);
 
   const reloadSettings = useCallback(async () => {
     try {
@@ -58,9 +73,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AppState>(() => ({
-    settings, settingsError, reloadSettings, setSettings, theme, toggleTheme, toast,
+    settings, settingsError, reloadSettings, setSettings, cli, refreshCli, theme, toggleTheme, toast,
     historyVersion, bumpHistory: () => setHistoryVersion((v) => v + 1),
-  }), [settings, settingsError, reloadSettings, theme, toggleTheme, toast, historyVersion]);
+  }), [settings, settingsError, reloadSettings, cli, refreshCli, theme, toggleTheme, toast, historyVersion]);
 
   return (
     <Ctx.Provider value={value}>

@@ -5,7 +5,7 @@ import { ArrowDownRight, ArrowUpRight, BookOpenCheck, History as HistoryIcon, Mi
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, HistoryRow, Trends } from "../lib/types";
-import { ErrorBanner, formatCost, formatDate, Loading, scoreColor } from "../components/common";
+import { ErrorBanner, formatDate, formatDuration, Loading, scoreColor } from "../components/common";
 
 function Change({ value }: { value: number | null }) {
   if (value == null) return <span className="muted small">first attempt</span>;
@@ -115,7 +115,7 @@ export default function History() {
           <section className="card" style={{ marginTop: 18 }}>
             <table className="data">
               <thead>
-                <tr><th>Date</th><th>Session</th><th>Subject</th><th>Score</th><th>Questions</th><th>Cost</th><th /></tr>
+                <tr><th>Date</th><th>Session</th><th>Subject</th><th>Score</th><th>Questions</th><th>AI calls</th><th>Time</th><th /></tr>
               </thead>
               <tbody>
                 {visible.map((r) => (
@@ -127,13 +127,14 @@ export default function History() {
                         {r.parent_session_id && <span className="badge"><Repeat size={11} /> Retest</span>}
                         {r.adaptive && <span className="badge">Adaptive</span>}
                         {r.guide_status === "ready" && <span className="badge primary"><BookOpenCheck size={11} /> Study guide</span>}
-                        {r.status !== "completed" && <span className="badge warn">In progress</span>}
+                        {r.status !== "completed" && <span className="badge warn">In progress · click to resume</span>}
                       </div>
                     </td>
                     <td className="small">{r.subject || <span className="muted">–</span>}</td>
                     <td>{r.score != null ? <strong style={{ color: scoreColor(r.score) }}>{Math.round(r.score)}%</strong> : <span className="muted">–</span>}</td>
                     <td className="small">{r.answered}/{r.count}</td>
-                    <td className="small">{formatCost(r.cost)}</td>
+                    <td className="small">{r.ai_calls}</td>
+                    <td className="small" title={`${formatDuration(r.ai_seconds)} waiting on Claude`}>{r.session_seconds != null ? formatDuration(r.session_seconds) : <span className="muted">in progress</span>}</td>
                     <td onClick={(e) => e.stopPropagation()} style={{ width: 150, textAlign: "right" }}>
                       {confirmDelete === r.id ? (
                         <span className="row" style={{ justifyContent: "flex-end", gap: 6 }}>

@@ -1,7 +1,7 @@
 """Session creation, topic mapping, and the background question-generation worker.
 
-Non-adaptive sessions: questions are generated in batches of BATCH_SIZE, kept about one batch ahead
-of the student. Adaptive sessions: while the student answers question k, the worker prefetches one
+Non-adaptive sessions: a small first batch (FIRST_BATCH) so the student can start quickly, then batches
+of BATCH_SIZE generated in the background, keeping POOL_AHEAD unanswered questions ready. Adaptive sessions: while the student answers question k, the worker prefetches one
 candidate for slot k+1 at every difficulty the answer could lead to, in a single call. The matching
 candidate is served and the rest are discarded."""
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from .. import config, db
-from ..claude_client import structured_call
+from ..llm_client import structured_call
 from ..errors import AppError
 from ..prompts.generate import generation_instruction
 from ..prompts.topic_map import TOPIC_MAP_INSTRUCTION
@@ -61,6 +61,10 @@ def create_session(
             raise AppError("missing_file", "One of the uploaded files is no longer available. Remove it and upload it again.")
 
     session_id = db.new_id()
+    doc_chars = sum(
+        (db.query_one("SELECT char_count FROM uploads WHERE id = ?", (uid,)) or {}).get("char_count") or 0
+        for uid in upload_ids
+    )
     cfg = {
         "types": types,
         "difficulty": difficulty,
@@ -68,9 +72,11 @@ def create_session(
         "count": count,
         "language": language or "Python",
         "feedback_mode": settings["feedback_mode"],
-        "model": settings["model"],
-        "effort": settings["effort"],
-        "fallback": settings["fallback_enabled"],
+        "model_fast": settings["model_fast"],
+        "model_smart": settings["model_smart"],
+        # Longer than one call can hold: each call gets the most relevant excerpts (shown in the UI).
+        "docs_truncated": doc_chars > config.DOC_CHAR_BUDGET,
+        "doc_chars": doc_chars,
         "slots": None,
     }
     db.insert("sessions", {
@@ -113,7 +119,7 @@ async def analyze(session: dict[str, Any]) -> None:
         instruction=TOPIC_MAP_INSTRUCTION,
         schema=TOPIC_MAP_SCHEMA,
         validate=TopicMap.model_validate,
-        max_tokens=16000,
+        focus=session["material"],
     )
     _store_subtopics(session["id"], [s.model_dump() for s in topic_map.subtopics])
     S.update_session(session["id"], title=topic_map.title.strip(), status="generating")
@@ -141,8 +147,9 @@ def needed_requests(session: dict[str, Any]) -> list[dict[str, Any]]:
         generated = {r["slot"] for r in rows}
         answered = db.query_one("SELECT COUNT(*) AS n FROM answers WHERE session_id = ?", (session["id"],))["n"]
         missing = [i for i in range(count) if i not in generated]
-        if missing and len(generated) - answered < config.BATCH_SIZE:
-            return [{"slot": i, **slots[i], "difficulty": cfg["difficulty"]} for i in missing[: config.BATCH_SIZE]]
+        if missing and len(generated) - answered < config.POOL_AHEAD:
+            size = config.FIRST_BATCH if not generated else config.BATCH_SIZE
+            return [{"slot": i, **slots[i], "difficulty": cfg["difficulty"]} for i in missing[:size]]
         return []
 
     served = sorted((r for r in rows if r["status"] == "served"), key=lambda r: r["slot"])
@@ -192,13 +199,15 @@ async def generate(session: dict[str, Any], wanted: list[dict[str, Any]]) -> int
             raise ValueError("; ".join(problems) or "no questions were returned")
         return good, problems
 
+    wanted_subs = {r["subtopic_id"] for r in requests}
+    focus = " ".join(f'{s["name"]} {s["description"]}' for s in subtopics if s["id"] in wanted_subs)
     good, problems = await structured_call(
         S.call_context(session),
         purpose="generate",
         instruction=instruction,
-        schema=generation_schema(),
+        schema=generation_schema(sorted({r["type"] for r in requests})),
         validate=validate,
-        max_tokens=32000,
+        focus=focus,
     )
     if problems:
         log.warning("generation partially invalid for %s: %s", session["id"], problems)

@@ -13,19 +13,27 @@ export interface ModelOption { id: string; label: string; description: string }
 export interface QuestionTypeOption { id: string; label: string; grading: "local" | "claude" | "hybrid" }
 
 export interface Settings {
-  model: string;
-  effort: "low" | "medium" | "high";
+  model_fast: string;
+  model_smart: string;
   feedback_mode: "immediate" | "end";
   theme: "light" | "dark";
-  fallback_enabled: boolean;
+}
+
+export interface CliStatus {
+  installed: boolean;
+  path: string | null;
+  version: string | null;
+  logged_in: boolean;
+  auth_method: string | null;
+  subscription: string | null;
+  ready: boolean;
+  message: string | null;
 }
 
 export interface SettingsPayload {
   settings: Settings;
-  key: { key_set: boolean; source: "keyring" | "env" | "none"; last4: string | null };
   options: {
     models: ModelOption[];
-    efforts: string[];
     difficulty_levels: Record<string, { label: string; description: string }>;
     question_types: QuestionTypeOption[];
     code_languages: string[];
@@ -33,10 +41,8 @@ export interface SettingsPayload {
     max_questions: number;
     max_file_mb: number;
     extensions: string[];
-    pricing: Record<string, { input: number; output: number; cache_read: number }>;
   };
   app: { name: string; version: string; data_dir: string };
-  warning?: string;
 }
 
 export interface UploadInfo {
@@ -58,9 +64,10 @@ export interface SessionConfig {
   count: number;
   language: string;
   feedback_mode: "immediate" | "end";
-  model: string;
-  effort: string;
-  fallback: boolean;
+  model_fast: string;
+  model_smart: string;
+  docs_truncated?: boolean;
+  doc_chars?: number;
 }
 
 export interface SessionView {
@@ -170,21 +177,22 @@ export interface ResultQuestion {
   confidently_wrong: boolean;
 }
 
-export interface CostSummary {
-  total: { calls: number; input: number; output: number; cache_write: number; cache_read: number; cost: number };
-  by_purpose: { purpose: string; calls: number; input: number; output: number; cache_write: number; cache_read: number; cost: number }[];
+export interface AiSummary {
+  total: { calls: number; failed: number; seconds: number };
+  by_purpose: { purpose: string; calls: number; failed: number; seconds: number }[];
 }
 
 export interface Results {
   session: {
     id: string; title: string; subject: string; created_at: string; completed_at: string | null; status: string;
-    config: SessionConfig; parent_session_id: string | null;
+    config: SessionConfig; parent_session_id: string | null; docs_truncated: boolean;
   };
   mastery: { overall: MasteryBucket; subtopics: SubtopicMastery[]; types: TypeMastery[]; weak_subtopic_ids: string[] };
   questions: ResultQuestion[];
   missed: ResultQuestion[];
   ungraded: string[];
-  cost: CostSummary;
+  ai: AiSummary;
+  session_seconds: number | null;
   study_guide_status: "generating" | "ready" | "failed" | null;
 }
 
@@ -236,7 +244,9 @@ export interface HistoryRow {
   answered: number;
   count: number;
   adaptive: boolean;
-  cost: number;
+  ai_calls: number;
+  ai_seconds: number;
+  session_seconds: number | null;
   guide_status: string | null;
 }
 

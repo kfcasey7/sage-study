@@ -29,6 +29,14 @@ function fileIcon(name: string) {
   return <FileText size={18} />;
 }
 
+function readyLabel(f: LocalFile): string {
+  const info = f.info;
+  if (info?.kind === "text" && info.char_count) return `${info.char_count.toLocaleString()} characters extracted`;
+  if (info?.kind === "pdf") return "Scanned PDF · Claude will read the pages directly";
+  if (info?.kind === "image") return `Image · Claude will read it directly · ${formatSize(f.size)}`;
+  return `Ready · ${formatSize(f.size)}`;
+}
+
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -36,7 +44,7 @@ function formatSize(bytes: number) {
 }
 
 export default function NewSession() {
-  const { settings, bumpHistory } = useApp();
+  const { settings, cli, bumpHistory } = useApp();
   const navigate = useNavigate();
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [material, setMaterial] = useState("");
@@ -121,9 +129,9 @@ export default function NewSession() {
         </div>
       </div>
 
-      {!settings.key.key_set && (
-        <InfoBanner title="Add your API key first">
-          Sage Study uses the Claude API. <a href="#/settings">Open Settings</a> to paste your Anthropic API key.
+      {cli && !cli.ready && (
+        <InfoBanner tone="warn" title="Claude Code needs attention">
+          {cli.message} <a href="#/settings">Open Settings</a> for details.
         </InfoBanner>
       )}
       <ErrorBanner error={error} onRetry={start} />
@@ -166,7 +174,7 @@ export default function NewSession() {
                   <span className="name" title={f.name}>{f.name}</span>
                   <span className="status">
                     {f.status === "uploading" && <><span className="spinner" /> Uploading…</>}
-                    {f.status === "ready" && <><CheckCircle2 size={14} color="var(--correct)" /> {f.info?.kind === "text" && f.info.char_count ? `${f.info.char_count.toLocaleString()} characters extracted` : `Ready · ${formatSize(f.size)}`}</>}
+                    {f.status === "ready" && <><CheckCircle2 size={14} color="var(--correct)" /> {readyLabel(f)}</>}
                     {f.status === "error" && f.error}
                   </span>
                   <button className="icon-btn" onClick={() => removeFile(f)} aria-label={`Remove ${f.name}`}><X size={16} /></button>
