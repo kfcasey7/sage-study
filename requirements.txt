@@ -1,0 +1,11 @@
+anthropic>=1.0
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9
+pydantic>=2.7
+keyring>=25
+platformdirs>=4
+python-docx>=1.1
+python-pptx>=1.0
+pillow>=10.4
+pywebview>=5.3
