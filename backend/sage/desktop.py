@@ -19,9 +19,56 @@ _exported: set[str] = set()
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
+def _own_hwnd() -> int | None:
+    """Handle of this process's visible top-level window titled like the app (Windows only)."""
+    import ctypes
+    from ctypes import wintypes
+
+    from . import config
+
+    user32 = ctypes.windll.user32
+    pid = os.getpid()
+    found: list[int] = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def callback(hwnd, _):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        if owner.value == pid:
+            buf = ctypes.create_unicode_buffer(256)
+            user32.GetWindowTextW(hwnd, buf, 256)
+            if buf.value == config.APP_NAME:
+                found.append(hwnd)
+                return False
+        return True
+
+    user32.EnumWindows(callback, 0)
+    return found[0] if found else None
+
+
+def restore_win32() -> bool:
+    """Un-minimize and raise the window with Win32 calls. pywebview's restore() relies on the
+    WinForms WindowState, which can miss a window that was shown minimized."""
+    import ctypes
+
+    hwnd = _own_hwnd()
+    if not hwnd:
+        return False
+    user32 = ctypes.windll.user32
+    user32.ShowWindow(hwnd, 9 if user32.IsIconic(hwnd) else 5)  # SW_RESTORE / SW_SHOW
+    user32.SetForegroundWindow(hwnd)
+    return True
+
+
 def focus() -> bool:
     if window is None:
         return False
+    if sys.platform == "win32":
+        try:
+            if restore_win32():
+                return True
+        except Exception:  # noqa: BLE001 - fall back to pywebview
+            log.exception("win32 focus failed")
     try:
         window.restore()
         window.show()
