@@ -1,0 +1,83 @@
+/* Sage theme tokens. Light is the default; dark keeps the same muted greens. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6f1;
+  --surface: #ffffff;
+  --surface-2: #eef2ea;
+  --surface-3: #e5ebe1;
+  --border: #d8dfd3;
+  --border-strong: #c3ccbe;
+
+  --primary: #6b8f71;          /* brand accent */
+  --primary-strong: #5a7f60;   /* filled buttons: 4.6:1 with white text */
+  --primary-hover: #4f6f55;
+  --primary-soft: #e3ebe0;
+  --primary-contrast: #ffffff;
+  --accent: #a3b899;
+
+  --text: #2f3a30;
+  --muted: #6b7568;
+  --faint: #8c9589;
+
+  --correct: #5e8c61;
+  --correct-soft: #e3efe2;
+  --incorrect: #b5674d;
+  --incorrect-soft: #f6e7e1;
+  --partial: #c9a44c;
+  --partial-text: #8a6d22;
+  --partial-soft: #f6efd9;
+
+  --shadow-sm: 0 1px 2px rgba(47, 58, 48, 0.06);
+  --shadow: 0 1px 2px rgba(47, 58, 48, 0.05), 0 6px 20px rgba(47, 58, 48, 0.07);
+  --shadow-lg: 0 2px 6px rgba(47, 58, 48, 0.06), 0 16px 40px rgba(47, 58, 48, 0.12);
+  --focus: 0 0 0 3px rgba(107, 143, 113, 0.35);
+  --code-bg: #f1f4ee;
+  --chart-grid: #e3e8df;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1e241f;
+  --surface: #273029;
+  --surface-2: #2d372f;
+  --surface-3: #344037;
+  --border: #3a463c;
+  --border-strong: #4a584c;
+
+  --primary: #8fb596;
+  --primary-strong: #8fb596;
+  --primary-hover: #a6c7ab;
+  --primary-soft: #334237;
+  --primary-contrast: #17201a;
+  --accent: #7f9a76;
+
+  --text: #e3eae1;
+  --muted: #a3ad9f;
+  --faint: #7d887a;
+
+  --correct: #8dbb8f;
+  --correct-soft: #2f4232;
+  --incorrect: #d78f75;
+  --incorrect-soft: #46332c;
+  --partial: #d9b868;
+  --partial-text: #e2c47a;
+  --partial-soft: #443c27;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.25), 0 16px 40px rgba(0, 0, 0, 0.35);
+  --focus: 0 0 0 3px rgba(143, 181, 150, 0.4);
+  --code-bg: #222a24;
+  --chart-grid: #364238;
+}
+
+:root {
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --font: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", Menlo, monospace;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --sidebar-w: 248px;
+}
