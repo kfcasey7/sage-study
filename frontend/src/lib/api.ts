@@ -1,5 +1,5 @@
 import type {
-  AnswerView, ApiErrorBody, CliStatus, Confidence, HistoryRow, NextResponse, Results, SessionOptions, SessionView,
+  AnswerView, ApiErrorBody, ChatView, CliStatus, Confidence, HistoryRow, NextResponse, Results, SessionOptions, SessionView,
   SettingsPayload, StudyGuide, StudySection, Trends, UploadInfo,
 } from "./types";
 
@@ -74,6 +74,8 @@ export const api = {
     post<AnswerView>(`/api/questions/${qid}/answer`, body),
   regrade: (qid: string) => post<AnswerView>(`/api/questions/${qid}/regrade`),
   deferQuestion: (qid: string) => post<{ ok: boolean; skipped_waiting: number }>(`/api/questions/${qid}/defer`),
+  questionChat: (qid: string) => get<ChatView>(`/api/questions/${qid}/chat`),
+  askClaude: (qid: string, message: string) => post<ChatView>(`/api/questions/${qid}/chat`, { message }),
   updateOptions: (id: string, options: SessionOptions) => put<SessionView>(`/api/sessions/${id}/options`, options),
   finish: (id: string) => post<Results>(`/api/sessions/${id}/finish`),
   results: (id: string) => get<Results>(`/api/sessions/${id}/results`),

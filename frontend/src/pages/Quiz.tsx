@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowRight, BookOpen, CircleHelp, Flag, Globe, HelpCircle, Send, SkipForward, Undo2 } from "lucide-react";
+import { ArrowRight, BookOpen, CircleHelp, Flag, Globe, HelpCircle, MessageCircleQuestion, Send, SkipForward, Undo2 } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { AnswerView, ApiErrorBody, Confidence, QuestionView, SessionView } from "../lib/types";
 import { ErrorBanner, Loading } from "../components/common";
 import { SessionMenu } from "../components/SessionMenu";
+import { QuestionChat } from "../components/QuestionChat";
 import { Markdown } from "../components/Markdown";
 import { AnswerInput, isAnswered, PROMPT_INSIDE_INPUT } from "../answers/AnswerInput";
 import { FeedbackPanel } from "../answers/FeedbackPanel";
@@ -28,6 +29,7 @@ export default function Quiz() {
   const [submitting, setSubmitting] = useState<null | "answer" | "skip" | "defer">(null);
   const [progress, setProgress] = useState({ answered: 0, served: 0, skipped_waiting: 0 });
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const pollRef = useRef<number | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -145,6 +147,7 @@ export default function Quiz() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if ((e.target as HTMLElement | null)?.closest?.(".chat-panel")) return;  // typing in the chat
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         if (answer && answer.grade_status !== "error") void loadNext();
@@ -160,7 +163,7 @@ export default function Quiz() {
 
   const pct = total ? (progress.answered / total) * 100 : 0;
   return (
-    <div className="page" ref={topRef}>
+    <div className={`page${chatOpen && phase === "question" ? " has-chat" : ""}`} ref={topRef}>
       <div className="page-header">
         <div>
           <h1>{session?.title || "Study session"}</h1>
@@ -225,6 +228,11 @@ export default function Quiz() {
             {q.uses_outside_knowledge && (
               <span className="badge warn" title="This question relies on general knowledge beyond your uploaded material."><Globe size={12} /> Beyond your material</span>
             )}
+            <span className="spacer" />
+            <button className="btn sm ghost" onClick={() => setChatOpen((o) => !o)} aria-pressed={chatOpen}
+              title="Chat with Claude about this question">
+              <MessageCircleQuestion size={15} /> Ask Claude
+            </button>
           </div>
 
           {q.scenario && <div className="scenario"><Markdown>{q.scenario}</Markdown></div>}
@@ -281,6 +289,11 @@ export default function Quiz() {
             )}
           </div>
         </div>
+      )}
+
+      {chatOpen && phase === "question" && q && (
+        <QuestionChat questionId={q.id} refreshKey={answer ? `${answer.revealed}-${answer.grade_status}` : "open"}
+          onClose={() => setChatOpen(false)} />
       )}
     </div>
   );

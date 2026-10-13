@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from .. import config, db, ingest
 from ..errors import AppError
 from ..schemas.questions import AnswerSubmission
-from ..services import generation, grading, results
+from ..services import chat, generation, grading, results
 from ..services import sessions as S
 
 router = APIRouter(prefix="/api", tags=["sessions"])
@@ -96,6 +96,7 @@ def delete_session(session_id: str) -> dict:
         conn.execute("DELETE FROM study_guides WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM session_documents WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM ai_calls WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM question_chats WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
     for uid in upload_ids:
         ingest.delete_upload(uid)  # only removes files no other session uses
@@ -137,6 +138,21 @@ async def update_options(session_id: str, body: OptionsIn) -> dict:
 async def defer(question_id: str) -> dict:
     """'Skip for now': move the on-screen question to the end of the quiz."""
     return generation.defer_question(question_id)
+
+
+class ChatIn(BaseModel):
+    message: str
+
+
+@router.get("/questions/{question_id}/chat")
+def get_chat(question_id: str) -> dict:
+    return chat.chat_view(question_id)
+
+
+@router.post("/questions/{question_id}/chat")
+async def ask_claude(question_id: str, body: ChatIn) -> dict:
+    """'Ask Claude' about this question. Before the answer is revealed, Claude helps without giving it away."""
+    return await chat.ask(question_id, body.message)
 
 
 @router.post("/questions/{question_id}/answer")

@@ -44,9 +44,10 @@ TASK_TIER = {
     "grade": "smart",
     "study_guide": "smart",
     "diagram_repair": "smart",
+    "chat": "smart",
 }
 # Seconds before a CLI call is killed.
-TASK_TIMEOUT = {"topic_map": 240, "generate": 300, "grade": 180, "study_guide": 420, "diagram_repair": 120}
+TASK_TIMEOUT = {"topic_map": 240, "generate": 300, "grade": 180, "study_guide": 420, "diagram_repair": 120, "chat": 180}
 MAX_CONCURRENT_CALLS = 2  # be gentle with subscription usage limits
 VALIDATION_RETRIES = 2
 
@@ -54,6 +55,10 @@ VALIDATION_RETRIES = 2
 # chunks most relevant to the request are sent.
 DOC_CHAR_BUDGET = 120_000
 CHUNK_CHARS = 4_000
+# "Ask Claude" replies are about one question, so they get a smaller slice of the most relevant excerpts.
+CHAT_DOC_CHAR_BUDGET = 30_000
+CHAT_HISTORY_MESSAGES = 20   # earlier turns sent with each chat message
+CHAT_MESSAGE_MAX_CHARS = 4_000
 # A PDF averaging fewer extractable characters per page than this is treated as scanned, and the
 # CLI reads the file itself.
 SCANNED_PDF_CHARS_PER_PAGE = 200

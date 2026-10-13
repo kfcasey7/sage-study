@@ -106,6 +106,8 @@ def purpose_of(req) -> str:
         return "study_guide"
     if "mermaid" in props:
         return "repair"
+    if "reply" in props:
+        return "chat"
     raise AssertionError(f"unknown schema {list(props)}")
 
 
@@ -143,6 +145,12 @@ def default_response(purpose: str, params, demo: bool = False) -> dict:
         }
     if purpose == "repair":
         return {"mermaid": "flowchart TD\nA-->C"}
+    if purpose == "chat":
+        if demo:
+            return {"reply": "Good question. Start with what the question is really testing: which idea from this subtopic "
+                             "does it rely on? Restate it in your own words, then check each option against the definition "
+                             "in your notes.\n\n*(Demo mode: this is a canned reply.)*"}
+        return {"reply": "Here's a hint."}
     raise AssertionError(purpose)
 
 

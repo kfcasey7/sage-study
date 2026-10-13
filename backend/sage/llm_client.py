@@ -262,8 +262,8 @@ def _safe_name(i: int, filename: str) -> str:
     return f"{i:02d}-{stem}{Path(filename).suffix.lower()}"
 
 
-def build_prompt(ctx: CallContext, instruction: str, focus: str) -> tuple[str, list[tuple[str, Path]], bool]:
-    texts, truncated = select_text(ctx.material.texts, focus, config.DOC_CHAR_BUDGET, config.CHUNK_CHARS)
+def build_prompt(ctx: CallContext, instruction: str, focus: str, doc_budget: int | None = None) -> tuple[str, list[tuple[str, Path]], bool]:
+    texts, truncated = select_text(ctx.material.texts, focus, doc_budget or config.DOC_CHAR_BUDGET, config.CHUNK_CHARS)
     files = [(_safe_name(i, name), path) for i, (name, path, _) in enumerate(ctx.material.files, 1)]
     parts: list[str] = []
     if texts:
@@ -301,11 +301,12 @@ async def structured_call(
     focus: str = "",
     max_tokens: int | None = None,  # kept for signature compatibility; the CLI manages output length
     attempts: int | None = None,
+    doc_budget: int | None = None,  # inline document characters; defaults to DOC_CHAR_BUDGET
 ) -> T:
     """Run one schema-constrained request through the CLI and validate the result. On validation
     failure, retry with the validator's message appended (up to VALIDATION_RETRIES retries)."""
     model = ctx.model_smart if config.TASK_TIER.get(purpose) == "smart" else ctx.model_fast
-    base_prompt, files, _ = build_prompt(ctx, instruction, focus)
+    base_prompt, files, _ = build_prompt(ctx, instruction, focus, doc_budget)
     timeout = config.TASK_TIMEOUT.get(purpose, 300)
     total = attempts or (1 + config.VALIDATION_RETRIES)
     note = ""

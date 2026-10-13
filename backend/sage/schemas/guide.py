@@ -195,3 +195,19 @@ DIAGRAM_REPAIR_SCHEMA = obj({"mermaid": STR})
 
 class DiagramRepair(Strict):
     mermaid: str
+
+
+# --- "Ask Claude" chat ------------------------------------------------------------
+
+CHAT_SCHEMA = obj({"reply": STR})
+
+
+class ChatOut(Strict):
+    reply: str
+
+    @field_validator("reply")
+    @classmethod
+    def _not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("reply must not be empty")
+        return v.strip()

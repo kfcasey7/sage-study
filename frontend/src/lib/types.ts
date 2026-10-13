@@ -266,3 +266,17 @@ export interface Trends {
   sessions: { session_id: string; created_at: string; score: number | null; title: string }[];
   subtopics: { name: string; latest: number; change: number | null; points: { session_id: string; date: string; score: number }[] }[];
 }
+
+export interface ChatMessage {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+/** unanswered / answered_hidden: Claude helps without giving the answer away. revealed: anything goes. */
+export interface ChatView {
+  question_id: string;
+  mode: "unanswered" | "answered_hidden" | "revealed";
+  messages: ChatMessage[];
+}
