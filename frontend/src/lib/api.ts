@@ -1,6 +1,6 @@
 import type {
-  AnswerView, ApiErrorBody, CliStatus, Confidence, HistoryRow, NextResponse, Results, SessionView, SettingsPayload,
-  StudyGuide, StudySection, Trends, UploadInfo,
+  AnswerView, ApiErrorBody, CliStatus, Confidence, HistoryRow, NextResponse, Results, SessionOptions, SessionView,
+  SettingsPayload, StudyGuide, StudySection, Trends, UploadInfo,
 } from "./types";
 
 export class ApiError extends Error {
@@ -73,6 +73,8 @@ export const api = {
   answer: (qid: string, body: { response: Record<string, unknown>; confidence: Confidence | null; skipped: boolean }) =>
     post<AnswerView>(`/api/questions/${qid}/answer`, body),
   regrade: (qid: string) => post<AnswerView>(`/api/questions/${qid}/regrade`),
+  deferQuestion: (qid: string) => post<{ ok: boolean; skipped_waiting: number }>(`/api/questions/${qid}/defer`),
+  updateOptions: (id: string, options: SessionOptions) => put<SessionView>(`/api/sessions/${id}/options`, options),
   finish: (id: string) => post<Results>(`/api/sessions/${id}/finish`),
   results: (id: string) => get<Results>(`/api/sessions/${id}/results`),
   retest: (id: string) => post<SessionView>(`/api/sessions/${id}/retest`),

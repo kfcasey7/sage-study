@@ -82,14 +82,25 @@ export interface SessionView {
   current_difficulty: number;
   subtopics: Subtopic[];
   documents: UploadInfo[];
-  progress: { served: number; answered: number; grading: number; generated: number };
+  progress: { served: number; answered: number; grading: number; generated: number; skipped_waiting: number };
   generating: boolean;
+  editable: boolean;
+}
+
+export interface SessionOptions {
+  types: string[];
+  difficulty: number;
+  adaptive: boolean;
+  count: number;
+  language: string;
+  feedback_mode: "immediate" | "end";
 }
 
 export interface QuestionView {
   id: string;
   position: number;
   total: number;
+  was_skipped: boolean;
   type: string;
   type_label: string;
   subtopic_id: string;

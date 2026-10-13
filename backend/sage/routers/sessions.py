@@ -43,7 +43,7 @@ class SessionIn(BaseModel):
 
 def session_view(session_id: str) -> dict[str, Any]:
     s = S.get_session(session_id)
-    cfg = {k: v for k, v in s["config"].items() if k != "slots"}
+    cfg = {k: v for k, v in s["config"].items() if k not in ("slots", "deferred_slots")}
     return {
         "id": s["id"],
         "title": s["title"],
@@ -58,6 +58,7 @@ def session_view(session_id: str) -> dict[str, Any]:
         "documents": [ingest.public_upload(u) for u in S.get_uploads(session_id)],
         "progress": S.progress(session_id),
         "generating": generation.worker_running(session_id),
+        "editable": s["status"] != "completed",
     }
 
 
@@ -114,6 +115,28 @@ async def next_question(session_id: str) -> dict:
     out = generation.next_question(session_id)
     out["progress"] = S.progress(session_id)
     return out
+
+
+class OptionsIn(BaseModel):
+    types: list[str]
+    difficulty: int
+    adaptive: bool
+    count: int
+    language: str = "Python"
+    feedback_mode: str = "immediate"
+
+
+@router.put("/sessions/{session_id}/options")
+async def update_options(session_id: str, body: OptionsIn) -> dict:
+    """Change question options mid-session; only questions not yet answered or on screen are affected."""
+    generation.update_options(session_id, **body.model_dump())
+    return session_view(session_id)
+
+
+@router.post("/questions/{question_id}/defer")
+async def defer(question_id: str) -> dict:
+    """'Skip for now': move the on-screen question to the end of the quiz."""
+    return generation.defer_question(question_id)
 
 
 @router.post("/questions/{question_id}/answer")

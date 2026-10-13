@@ -12,6 +12,7 @@ import { Markdown } from "../components/Markdown";
 import { MarkdownInline } from "../components/MarkdownInline";
 import { MermaidDiagram } from "../components/MermaidDiagram";
 import { ChartView } from "../components/ChartView";
+import { SessionMenu } from "../components/SessionMenu";
 
 function Formula({ latex }: { latex: string }) {
   const html = katex.renderToString(latex.replace(/^\$+|\$+$/g, ""), { displayMode: true, throwOnError: false, strict: "ignore" });
@@ -231,6 +232,7 @@ export default function StudyGuide() {
           <button className="btn sm" onClick={exportMd} disabled={generating || !ready || !!busy}>{busy === "md" ? <span className="spinner" /> : <FileText size={15} />} Markdown</button>
           <button className="btn sm" onClick={exportPdf} disabled={generating || !ready || !!busy}>{busy === "pdf" ? <span className="spinner" /> : <FileDown size={15} />} PDF</button>
           <button className="btn sm primary" onClick={retest} disabled={!!busy}>{busy === "retest" ? <span className="spinner" /> : <Repeat size={15} />} Retest weak areas</button>
+          <SessionMenu sessionId={id} />
         </div>
       </div>
 

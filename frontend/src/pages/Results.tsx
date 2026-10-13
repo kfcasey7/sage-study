@@ -10,6 +10,7 @@ import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, ResultQuestion, Results as ResultsT } from "../lib/types";
 import { ErrorBanner, formatDateTime, formatDuration, Loading, ScoreRing, scoreColor, VerdictBadge } from "../components/common";
 import { Markdown } from "../components/Markdown";
+import { SessionMenu } from "../components/SessionMenu";
 
 const PURPOSE_LABELS: Record<string, string> = {
   topic_map: "Mapping subtopics", generate: "Writing questions", grade: "Grading answers",
@@ -112,6 +113,7 @@ export default function Results() {
         </div>
         <div className="row">
           <button className="btn" onClick={() => navigate("/")}><PlusCircle size={16} /> New session</button>
+          <SessionMenu sessionId={id} />
         </div>
       </div>
 

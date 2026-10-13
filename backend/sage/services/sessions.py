@@ -67,7 +67,13 @@ def progress(session_id: str) -> dict[str, int]:
         " (SELECT COUNT(DISTINCT slot) FROM questions WHERE session_id = ? AND status != 'discarded') AS generated",
         (session_id, session_id, session_id, session_id),
     )
-    return dict(s)  # type: ignore[arg-type]
+    out = dict(s)  # type: ignore[arg-type]
+    # Skipped questions waiting at the end, including ones being rewritten after an options change.
+    cfg = db.loads((db.query_one("SELECT config_json FROM sessions WHERE id = ?", (session_id,)) or {}).get("config_json"), {}) or {}
+    served = {r["slot"] for r in db.query("SELECT slot FROM questions WHERE session_id = ? AND status = 'served'", (session_id,))}
+    plan = cfg.get("slots") or []
+    out["skipped_waiting"] = len([x for x in cfg.get("deferred_slots", []) if x not in served and x < len(plan) and plan[x]])
+    return out
 
 
 # Reading extracted text from disk for every call is cheap, but keep a few sessions' material loaded.

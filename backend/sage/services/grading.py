@@ -14,6 +14,7 @@ from ..schemas.questions import AnswerSubmission
 from . import generation
 from . import sessions as S
 from .grading_local import grade_local, skipped_result
+from .mastery import next_difficulty
 from .presentation import correct_answer_text, user_answer_text
 
 log = logging.getLogger(__name__)
@@ -66,6 +67,19 @@ async def grade_with_claude(question_id: str) -> None:
         "details": {"criteria": [c.model_dump() for c in grade.criteria_results]},
         "graded_by": "claude",
     }))
+    apply_adaptive(question_id)
+
+
+def apply_adaptive(question_id: str) -> None:
+    """Adaptive sessions: move the level once an answer is graded (up if correct, down if missed or
+    "I don't know", unchanged if partial). Skipped-for-later questions never reach here."""
+    q = db.query_one("SELECT session_id, difficulty FROM questions WHERE id = ?", (question_id,))
+    ans = S.load_answer(question_id)
+    if not q or not ans or ans["grade_status"] != "done":
+        return
+    session = S.get_session(q["session_id"])
+    if session["config"].get("adaptive"):
+        S.update_session(session["id"], current_difficulty=next_difficulty(q["difficulty"], ans["verdict"], ans["skipped"]))
 
 
 def schedule_grade(question_id: str) -> asyncio.Task:
@@ -118,6 +132,8 @@ async def submit_answer(question_id: str, sub: AnswerSubmission) -> dict[str, An
         row.update(_grade_fields(res))
         row["details_json"] = db.dumps(res.get("details", {}))
     db.insert("answers", row)
+    if res:
+        apply_adaptive(question_id)
 
     cfg = session["config"]
     if res is None:

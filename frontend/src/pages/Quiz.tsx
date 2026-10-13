@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowRight, BookOpen, Flag, Globe, HelpCircle, Send } from "lucide-react";
+import { ArrowRight, BookOpen, CircleHelp, Flag, Globe, HelpCircle, Send, SkipForward, Undo2 } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { AnswerView, ApiErrorBody, Confidence, QuestionView, SessionView } from "../lib/types";
 import { ErrorBanner, Loading } from "../components/common";
+import { SessionMenu } from "../components/SessionMenu";
 import { Markdown } from "../components/Markdown";
 import { AnswerInput, isAnswered, PROMPT_INSIDE_INPUT } from "../answers/AnswerInput";
 import { FeedbackPanel } from "../answers/FeedbackPanel";
@@ -24,8 +25,8 @@ export default function Quiz() {
   const [response, setResponse] = useState<Record<string, unknown>>({});
   const [confidence, setConfidence] = useState<Confidence | null>(null);
   const [answer, setAnswer] = useState<AnswerView | null>(null);
-  const [submitting, setSubmitting] = useState<null | "answer" | "skip">(null);
-  const [progress, setProgress] = useState({ answered: 0, served: 0 });
+  const [submitting, setSubmitting] = useState<null | "answer" | "skip" | "defer">(null);
+  const [progress, setProgress] = useState({ answered: 0, served: 0, skipped_waiting: 0 });
   const [confirmFinish, setConfirmFinish] = useState(false);
   const pollRef = useRef<number | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -46,7 +47,7 @@ export default function Quiz() {
     if (pollRef.current) window.clearTimeout(pollRef.current);
     try {
       const r = await api.next(id);
-      setProgress({ answered: r.progress.answered, served: r.progress.served });
+      setProgress({ answered: r.progress.answered, served: r.progress.served, skipped_waiting: r.progress.skipped_waiting ?? 0 });
       if (r.state === "question") {
         setQ(r.question);
         setResponse({});
@@ -93,7 +94,7 @@ export default function Quiz() {
       if (a.revealed) {
         setAnswer(a);
       } else {
-        toast(skipped ? "Skipped. It counts as a miss." : "Answer saved. Feedback comes at the end.");
+        toast(skipped ? "Marked as \"I don't know\". It counts as a miss." : "Answer saved. Feedback comes at the end.");
         await loadNext();
       }
     } catch (e) {
@@ -101,6 +102,27 @@ export default function Quiz() {
     } finally {
       setSubmitting(null);
     }
+  }
+
+  async function skipForNow() {
+    if (!q || submitting) return;
+    setSubmitting("defer");
+    setError(null);
+    try {
+      await api.deferQuestion(q.id);
+      toast("Skipped. It'll come back after the other questions.");
+      await loadNext();
+    } catch (e) {
+      setError(asApiError(e).toBody());
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  function onOptionsSaved(view: SessionView) {
+    setSession(view);
+    setQ((prev) => (prev ? { ...prev, total: view.config.count } : prev));
+    if (phase !== "question") void loadNext();
   }
 
   async function regrade() {
@@ -118,6 +140,7 @@ export default function Quiz() {
 
   const canSubmit = !!q && !answer && !submitting && isAnswered(q.type, response);
   const total = q?.total ?? session?.config.count ?? 0;
+  const isLast = total - progress.answered <= 1;
   const locked = !!answer || !!submitting;
 
   useEffect(() => {
@@ -148,17 +171,20 @@ export default function Quiz() {
             </p>
           )}
         </div>
-        {progress.answered > 0 && (
-          confirmFinish ? (
-            <div className="row">
-              <span className="small muted">End now? Unanswered questions won't count.</span>
-              <button className="btn sm primary" onClick={finish}>Finish</button>
-              <button className="btn sm ghost" onClick={() => setConfirmFinish(false)}>Keep going</button>
-            </div>
-          ) : (
-            <button className="btn sm ghost" onClick={() => setConfirmFinish(true)}><Flag size={14} /> Finish early</button>
-          )
-        )}
+        <div className="row" style={{ flexWrap: "nowrap" }}>
+          {progress.answered > 0 && (
+            confirmFinish ? (
+              <div className="row">
+                <span className="small muted">End now? Unanswered questions won't count.</span>
+                <button className="btn sm primary" onClick={finish}>Finish</button>
+                <button className="btn sm ghost" onClick={() => setConfirmFinish(false)}>Keep going</button>
+              </div>
+            ) : (
+              <button className="btn sm ghost" onClick={() => setConfirmFinish(true)}><Flag size={14} /> Finish early</button>
+            )
+          )}
+          <SessionMenu sessionId={id} onOptionsSaved={onOptionsSaved} />
+        </div>
       </div>
 
       <div className="quiz-top">
@@ -167,6 +193,11 @@ export default function Quiz() {
         </div>
         <span className="count">{Math.min(progress.answered + (answer ? 0 : 1), total)} of {total}</span>
       </div>
+      {progress.skipped_waiting > 0 && (
+        <div className="muted small" style={{ marginTop: -10, marginBottom: 14 }}>
+          <Undo2 size={13} style={{ verticalAlign: -2 }} /> {progress.skipped_waiting} skipped question{progress.skipped_waiting === 1 ? "" : "s"} will come back at the end.
+        </div>
+      )}
 
       {phase === "error" && <ErrorBanner error={error} onRetry={retryGeneration} />}
 
@@ -190,6 +221,7 @@ export default function Quiz() {
             <span className="badge primary"><BookOpen size={12} /> {q.subtopic_name}</span>
             <span className="badge">{q.type_label}</span>
             <span className="badge">Difficulty {q.difficulty} · {q.difficulty_label}</span>
+            {q.was_skipped && <span className="badge warn"><Undo2 size={12} /> Skipped earlier</span>}
             {q.uses_outside_knowledge && (
               <span className="badge warn" title="This question relies on general knowledge beyond your uploaded material."><Globe size={12} /> Beyond your material</span>
             )}
@@ -225,8 +257,13 @@ export default function Quiz() {
           <div className="quiz-actions">
             {!answer ? (
               <>
-                <button className="btn" onClick={() => submit(true)} disabled={!!submitting}>
-                  {submitting === "skip" && <span className="spinner" />} Skip / I don't know
+                <button className="btn" onClick={() => submit(true)} disabled={!!submitting}
+                  title="Counts as a miss and shows you the answer">
+                  {submitting === "skip" ? <span className="spinner" /> : <CircleHelp size={16} />} I don't know
+                </button>
+                <button className="btn ghost" onClick={skipForNow} disabled={!!submitting || isLast}
+                  title={isLast ? "This is the last question, so there's nothing to skip ahead to" : "Move this question to the end of the quiz"}>
+                  {submitting === "defer" ? <span className="spinner" /> : <SkipForward size={16} />} Skip for now
                 </button>
                 <span className="spacer" />
                 <span className="muted small"><span className="kbd">Ctrl</span> + <span className="kbd">Enter</span></span>

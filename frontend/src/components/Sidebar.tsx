@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { HistoryRow } from "../lib/types";
 import { formatDate } from "./common";
+import { SessionMenu } from "./SessionMenu";
 
 export function Sidebar() {
   const { theme, toggleTheme, historyVersion, cli } = useApp();
@@ -29,13 +30,16 @@ export function Sidebar() {
 
       {recent.length > 0 && <div className="sidebar-section">Recent</div>}
       {recent.map((r) => (
-        <Link key={r.id} className="recent-link" to={r.status === "completed" ? `/results/${r.id}` : `/quiz/${r.id}`}>
-          <span className="recent-title">{r.title || r.subject || "Untitled session"}</span>
-          <span className="recent-meta">
-            {formatDate(r.created_at)}
-            {r.status === "completed" && r.score != null ? ` · ${Math.round(r.score)}%` : r.status !== "completed" ? " · in progress" : ""}
-          </span>
-        </Link>
+        <div key={r.id} className="recent-row">
+          <Link className="recent-link" to={r.status === "completed" ? `/results/${r.id}` : `/quiz/${r.id}`}>
+            <span className="recent-title">{r.title || r.subject || "Untitled session"}</span>
+            <span className="recent-meta">
+              {formatDate(r.created_at)}
+              {r.status === "completed" && r.score != null ? ` · ${Math.round(r.score)}%` : r.status !== "completed" ? " · in progress" : ""}
+            </span>
+          </Link>
+          <SessionMenu sessionId={r.id} label={`Options for ${r.title || "session"}`} />
+        </div>
       ))}
 
       <div className="sidebar-footer">

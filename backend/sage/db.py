@@ -65,7 +65,8 @@ CREATE TABLE IF NOT EXISTS questions (
     difficulty   INTEGER NOT NULL,
     payload_json TEXT NOT NULL,         -- full question incl. answer key (never sent to UI before answering)
     display_json TEXT NOT NULL,         -- public view (shuffled options etc.)
-    status       TEXT NOT NULL,         -- pool | served | discarded
+    status       TEXT NOT NULL,         -- pool | served | deferred (skipped, comes back at the end) | discarded
+    deferred_count INTEGER NOT NULL DEFAULT 0,  -- times the student skipped it
     created_at   TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS answers (
@@ -120,6 +121,13 @@ def new_id() -> str:
     return uuid.uuid4().hex[:16]
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns introduced after a database was first created."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(questions)")}
+    if "deferred_count" not in cols:
+        conn.execute("ALTER TABLE questions ADD COLUMN deferred_count INTEGER NOT NULL DEFAULT 0")
+
+
 def init_db() -> None:
     global _initialized_path
     with _init_lock:
@@ -129,6 +137,7 @@ def init_db() -> None:
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
+            _migrate(conn)
             conn.commit()
         finally:
             conn.close()

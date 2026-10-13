@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowUpRight, BookOpenCheck, History as HistoryIcon, Minus, Repeat, Trash2, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpenCheck, History as HistoryIcon, Minus, Repeat, TrendingUp } from "lucide-react";
+import { SessionMenu } from "../components/SessionMenu";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, HistoryRow, Trends } from "../lib/types";
@@ -21,12 +22,11 @@ function Change({ value }: { value: number | null }) {
 
 export default function History() {
   const navigate = useNavigate();
-  const { theme, bumpHistory, historyVersion } = useApp();
+  const { theme, historyVersion } = useApp();
   const [rows, setRows] = useState<HistoryRow[] | null>(null);
   const [subject, setSubject] = useState<string>("");
   const [trends, setTrends] = useState<Trends | null>(null);
   const [error, setError] = useState<ApiErrorBody | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
     api.history().then(setRows).catch((e) => setError(asApiError(e).toBody()));
@@ -39,13 +39,6 @@ export default function History() {
     api.trends(subject).then(setTrends).catch(() => setTrends(null));
   }, [subject, historyVersion]);
 
-  async function remove(id: string) {
-    try {
-      await api.deleteSession(id);
-      setConfirmDelete(null);
-      bumpHistory();
-    } catch (e) { setError(asApiError(e).toBody()); }
-  }
 
   if (!rows) return error ? <div className="page"><ErrorBanner error={error} /></div> : <Loading message="Loading your history…" rotate={false} />;
 
@@ -135,15 +128,8 @@ export default function History() {
                     <td className="small">{r.answered}/{r.count}</td>
                     <td className="small">{r.ai_calls}</td>
                     <td className="small" title={`${formatDuration(r.ai_seconds)} waiting on Claude`}>{r.session_seconds != null ? formatDuration(r.session_seconds) : <span className="muted">in progress</span>}</td>
-                    <td onClick={(e) => e.stopPropagation()} style={{ width: 150, textAlign: "right" }}>
-                      {confirmDelete === r.id ? (
-                        <span className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
-                          <button className="btn sm danger" onClick={() => remove(r.id)}>Delete</button>
-                          <button className="btn sm ghost" onClick={() => setConfirmDelete(null)}>Cancel</button>
-                        </span>
-                      ) : (
-                        <button className="icon-btn" aria-label="Delete session" onClick={() => setConfirmDelete(r.id)}><Trash2 size={16} /></button>
-                      )}
+                    <td onClick={(e) => e.stopPropagation()} style={{ width: 56, textAlign: "right" }}>
+                      <SessionMenu sessionId={r.id} label={`Options for ${r.title || "session"}`} />
                     </td>
                   </tr>
                 ))}
