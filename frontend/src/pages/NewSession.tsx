@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, FileImage, FileText, Presentation, Sparkles, Upload, X } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
+import { LanguagePicker } from "../components/LanguagePicker";
 import type { ApiErrorBody, UploadInfo } from "../lib/types";
 import { ErrorBanner, InfoBanner, Loading } from "../components/common";
 
@@ -15,11 +16,17 @@ interface LocalFile {
   error?: string;
 }
 
-interface Prefs { types: string[]; difficulty: number; adaptive: boolean; count: number; language: string }
-const DEFAULT_PREFS: Prefs = { types: ["multiple_choice", "true_false", "short_response"], difficulty: 3, adaptive: false, count: 10, language: "Python" };
+interface Prefs { types: string[]; difficulty: number; adaptive: boolean; count: number; languages: string[] }
+const DEFAULT_PREFS: Prefs = { types: ["multiple_choice", "true_false", "short_response"], difficulty: 3, adaptive: false, count: 10, languages: ["Python"] };
 
 function loadPrefs(): Prefs {
-  try { return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem("sage-new-session") || "{}") }; } catch { return DEFAULT_PREFS; }
+  try {
+    const saved = JSON.parse(localStorage.getItem("sage-new-session") || "{}");
+    // Saved before several languages could be picked: { language: "C++" }
+    if (!Array.isArray(saved.languages) && typeof saved.language === "string") saved.languages = [saved.language];
+    delete saved.language;
+    return { ...DEFAULT_PREFS, ...saved };
+  } catch { return DEFAULT_PREFS; }
 }
 
 function fileIcon(name: string) {
@@ -67,6 +74,7 @@ export default function NewSession() {
   const uploading = files.some((f) => f.status === "uploading");
   const readyFiles = files.filter((f) => f.status === "ready" && f.info);
   const canStart = !starting && !uploading && prefs.types.length > 0 && (material.trim().length > 0 || readyFiles.length > 0)
+    && (!needsLanguage || prefs.languages.length > 0)
     && prefs.count >= 1 && prefs.count <= opts.max_questions;
 
   function addFiles(list: FileList | File[]) {
@@ -110,7 +118,8 @@ export default function NewSession() {
     try {
       const s = await api.createSession({
         material, subject, upload_ids: readyFiles.map((f) => f.info!.id), types: prefs.types,
-        difficulty: prefs.difficulty, adaptive: prefs.adaptive, count: prefs.count, language: prefs.language,
+        difficulty: prefs.difficulty, adaptive: prefs.adaptive, count: prefs.count,
+        languages: prefs.languages.length ? prefs.languages : ["Python"],
       });
       bumpHistory();
       navigate(`/quiz/${s.id}`);
@@ -205,12 +214,7 @@ export default function NewSession() {
         </div>
 
         {needsLanguage && (
-          <label className="field" style={{ maxWidth: 280 }}>
-            Code language
-            <select className="select" value={prefs.language} onChange={(e) => setPrefs((p) => ({ ...p, language: e.target.value }))}>
-              {opts.code_languages.map((l) => <option key={l}>{l}</option>)}
-            </select>
-          </label>
+          <LanguagePicker options={opts.code_languages} value={prefs.languages} onChange={(languages) => setPrefs((p) => ({ ...p, languages }))} />
         )}
 
         <div>

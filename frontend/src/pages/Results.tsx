@@ -4,22 +4,23 @@ import {
   Bar, BarChart, CartesianGrid, Cell, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
-import { AlertTriangle, BookOpenCheck, ChevronDown, Clock, Globe, PlusCircle, RefreshCw, Repeat, Sparkles } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, ChevronDown, Clock, Globe, MessageSquareWarning, PlusCircle, RefreshCw, Repeat, Sparkles } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, ResultQuestion, Results as ResultsT } from "../lib/types";
 import { ErrorBanner, formatDateTime, formatDuration, Loading, ScoreRing, scoreColor, VerdictBadge } from "../components/common";
 import { Markdown } from "../components/Markdown";
 import { SessionMenu } from "../components/SessionMenu";
+import { ReportQuestionDialog } from "../components/ReportQuestionDialog";
 
 const PURPOSE_LABELS: Record<string, string> = {
   topic_map: "Mapping subtopics", generate: "Writing questions", grade: "Grading answers",
-  study_guide: "Study guide", diagram_repair: "Fixing diagrams",
+  study_guide: "Study guide", diagram_repair: "Fixing diagrams", chat: "Ask Claude chats",
 };
 
 const tooltipStyle = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)" };
 
-function QuestionReview({ q, open = false }: { q: ResultQuestion; open?: boolean }) {
+function QuestionReview({ q, open = false, onReport }: { q: ResultQuestion; open?: boolean; onReport: () => void }) {
   return (
     <details className="miss" open={open}>
       <summary>
@@ -32,6 +33,7 @@ function QuestionReview({ q, open = false }: { q: ResultQuestion; open?: boolean
           </div>
         </div>
         <div className="row" style={{ flexShrink: 0, gap: 6 }}>
+          {q.reported && <span className="badge" title={q.report_reason ?? undefined}><MessageSquareWarning size={12} /> Reported · not counted</span>}
           {q.confidently_wrong && <span className="badge incorrect" title="Answered with high confidence but scored below 50"><AlertTriangle size={12} /> Confidently wrong</span>}
           {q.uses_outside_knowledge && <span className="badge warn" title="Relied on knowledge beyond your material"><Globe size={12} /></span>}
           <VerdictBadge verdict={q.grade_status === "done" ? q.verdict : null} skipped={q.skipped} />
@@ -54,6 +56,15 @@ function QuestionReview({ q, open = false }: { q: ResultQuestion; open?: boolean
         {q.misconception && <div className="full"><h4>Underlying idea to revisit</h4><p style={{ margin: 0 }}>{q.misconception}</p></div>}
         {q.explanation && <div className="full"><h4>Explanation</h4><Markdown>{q.explanation}</Markdown></div>}
         {q.grade_status === "error" && <div className="full"><ErrorBanner error={q.grade_error} compact /></div>}
+        <div className="full row" style={{ justifyContent: "flex-end" }}>
+          {q.reported ? (
+            <span className="muted small">You reported this question ({q.report_reason?.toLowerCase()}), so it isn't counted in your scores.</span>
+          ) : (
+            <button className="btn sm ghost" onClick={onReport} title="Report a poorly made question (wrong answer key, unclear, off-topic…)">
+              <MessageSquareWarning size={14} /> Report this question
+            </button>
+          )}
+        </div>
       </div>
     </details>
   );
@@ -67,6 +78,7 @@ export default function Results() {
   const [error, setError] = useState<ApiErrorBody | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [reporting, setReporting] = useState<string | null>(null);
 
   useEffect(() => {
     api.results(id).then((r) => {
@@ -242,7 +254,18 @@ export default function Results() {
           <button className="btn sm ghost" onClick={() => setShowAll(!showAll)}>{showAll ? "Show missed only" : "Show all questions"}</button>
         </div>
         {(showAll ? data.questions : data.missed).length === 0 && <p className="muted">Nothing missed. 🎉</p>}
-        {(showAll ? data.questions : data.missed).map((q, i) => <QuestionReview key={q.id} q={q} open={!showAll && i === 0} />)}
+        {(showAll ? data.questions : data.missed).map((q, i) => (
+          <QuestionReview key={q.id} q={q} open={!showAll && i === 0} onReport={() => setReporting(q.id)} />
+        ))}
+        {data.reported.length > 0 && !showAll && (
+          <p className="muted small" style={{ marginBottom: 0 }}>
+            {data.reported.length} reported question{data.reported.length === 1 ? " isn't" : "s aren't"} counted. Choose "Show all questions" to see {data.reported.length === 1 ? "it" : "them"}.
+          </p>
+        )}
+        {reporting && (
+          <ReportQuestionDialog questionId={reporting} answered onClose={() => setReporting(null)}
+            onReported={() => { api.results(id).then(setData).catch((e) => setError(asApiError(e).toBody())); bumpHistory(); }} />
+        )}
       </section>
 
       <details className="card" style={{ marginTop: 18 }}>

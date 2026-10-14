@@ -111,6 +111,14 @@ CREATE TABLE IF NOT EXISTS question_chats (
     content      TEXT NOT NULL,
     created_at   TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS question_reports (
+    question_id  TEXT PRIMARY KEY,       -- one report per question (reporting again replaces it)
+    session_id   TEXT NOT NULL,
+    reason       TEXT NOT NULL,          -- see config.REPORT_REASONS
+    note         TEXT NOT NULL DEFAULT '',
+    answered     INTEGER NOT NULL,       -- 1 = reported after answering (kept, not scored); 0 = replaced
+    created_at   TEXT NOT NULL
+);
 DROP TABLE IF EXISTS api_calls;          -- token/cost tracking from the API-key era
 CREATE INDEX IF NOT EXISTS idx_questions_session ON questions(session_id, status);
 CREATE INDEX IF NOT EXISTS idx_answers_session ON answers(session_id);

@@ -3,15 +3,18 @@ import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import TsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
+import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import { useApp } from "../lib/app-context";
 
 window.MonacoEnvironment = {
-  getWorker: (_id: string, label: string) => (label === "typescript" || label === "javascript" ? new TsWorker() : new EditorWorker()),
+  getWorker: (_id: string, label: string) =>
+    label === "typescript" || label === "javascript" ? new TsWorker() : label === "json" ? new JsonWorker() : new EditorWorker(),
 };
 loader.config({ monaco });
 
 const LANGUAGE_IDS: Record<string, string> = {
   Python: "python", "C++": "cpp", Java: "java", C: "c", MATLAB: "matlab", JavaScript: "javascript",
+  SQL: "sql", JSON: "json", XML: "xml", Assembly: "asm",
 };
 
 let configured = false;
@@ -43,6 +46,23 @@ function configure() {
     },
   });
   monaco.languages.setLanguageConfiguration("matlab", { comments: { lineComment: "%", blockComment: ["%{", "%}"] } });
+  // Nor one for assembly: comments, directives, labels, registers, numbers and strings, for x86/ARM/MIPS alike.
+  monaco.languages.register({ id: "asm" });
+  monaco.languages.setMonarchTokensProvider("asm", {
+    ignoreCase: true,
+    tokenizer: {
+      root: [
+        [/(?:;|@|\/\/|#(?!-?(?:0x)?\d)).*$/, "comment"],  // `#5` is an ARM immediate, not a comment
+        [/^\s*[a-z_.$][\w.$]*:/, "type"],
+        [/\.[a-z_]\w*/, "keyword"],
+        [/\$?\b(?:[re]?[abcd]x|[abcd][hl]|[re]?(?:si|di|sp|bp|ip)|r\d{1,2}[dwb]?|[xw]\d{1,2}|sp|lr|pc|zero|[atsvk]\d|ra|gp|fp|[xyz]mm\d{1,2})\b/, "variable"],
+        [/\b0x[0-9a-f]+\b|\b[0-9][0-9a-f]*h\b|\b\d+\b|#-?\d+/, "number"],
+        [/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/, "string"],
+        [/^\s*[a-z]\w*/, "keyword"],
+      ],
+    },
+  });
+  monaco.languages.setLanguageConfiguration("asm", { comments: { lineComment: ";" } });
 }
 
 export default function CodeEditor({ language, value, onChange, readOnly, height = 340, autoFocus = true }: {

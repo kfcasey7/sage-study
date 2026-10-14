@@ -38,7 +38,8 @@ class SessionIn(BaseModel):
     difficulty: int = 3
     adaptive: bool = False
     count: int = 10
-    language: str = "Python"
+    languages: list[str] = Field(default_factory=list)
+    language: str | None = None  # older clients: a single code language
 
 
 def session_view(session_id: str) -> dict[str, Any]:
@@ -72,7 +73,7 @@ async def create_session(body: SessionIn) -> dict:
         difficulty=body.difficulty,
         adaptive=body.adaptive,
         count=body.count,
-        language=body.language,
+        languages=body.languages or [body.language or "Python"],
         settings=db.get_settings(),
     )
     generation.ensure_worker(session_id)
@@ -97,6 +98,7 @@ def delete_session(session_id: str) -> dict:
         conn.execute("DELETE FROM session_documents WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM ai_calls WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM question_chats WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM question_reports WHERE session_id = ?", (session_id,))
         conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
     for uid in upload_ids:
         ingest.delete_upload(uid)  # only removes files no other session uses
@@ -123,14 +125,18 @@ class OptionsIn(BaseModel):
     difficulty: int
     adaptive: bool
     count: int
-    language: str = "Python"
+    languages: list[str] = Field(default_factory=list)
+    language: str | None = None  # older clients: a single code language
     feedback_mode: str = "immediate"
 
 
 @router.put("/sessions/{session_id}/options")
 async def update_options(session_id: str, body: OptionsIn) -> dict:
     """Change question options mid-session; only questions not yet answered or on screen are affected."""
-    generation.update_options(session_id, **body.model_dump())
+    opts = body.model_dump()
+    legacy = opts.pop("language")
+    opts["languages"] = opts["languages"] or [legacy or "Python"]
+    generation.update_options(session_id, **opts)
     return session_view(session_id)
 
 
@@ -153,6 +159,18 @@ def get_chat(question_id: str) -> dict:
 async def ask_claude(question_id: str, body: ChatIn) -> dict:
     """'Ask Claude' about this question. Before the answer is revealed, Claude helps without giving it away."""
     return await chat.ask(question_id, body.message)
+
+
+class ReportIn(BaseModel):
+    reason: str
+    note: str = ""
+
+
+@router.post("/questions/{question_id}/report")
+async def report(question_id: str, body: ReportIn) -> dict:
+    """Report a poorly made question. Unanswered: replaced by a new question at the end.
+    Answered: kept but left out of the score."""
+    return generation.report_question(question_id, body.reason, body.note)
 
 
 @router.post("/questions/{question_id}/answer")
@@ -208,7 +226,7 @@ async def retest(session_id: str, body: RetestIn | None = None) -> dict:
         difficulty=cfg["difficulty"],
         adaptive=cfg["adaptive"],
         count=count,
-        language=cfg.get("language", "Python"),
+        languages=cfg["languages"],
         settings={**db.get_settings(), "model_fast": cfg.get("model_fast", config.DEFAULT_MODEL_FAST),
                   "model_smart": cfg.get("model_smart", config.DEFAULT_MODEL_SMART)},
         subtopics=[{"name": s["name"], "description": s["description"]} for s in weak],

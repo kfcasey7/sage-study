@@ -189,7 +189,7 @@ def test_session_view_exposes_settings_for_the_options_dialog(client, fake_claud
     s = create(client, types=["code", "true_false"], count=3, language="C++", material="Pointers and references")
     v = client.get(f"/api/sessions/{s['id']}").json()
     assert v["material"] == "Pointers and references" and v["editable"]
-    assert v["config"]["types"] == ["true_false", "code"] and v["config"]["language"] == "C++"
+    assert v["config"]["types"] == ["true_false", "code"] and v["config"]["languages"] == ["C++"]
     assert "slots" not in v["config"] and "deferred_slots" not in v["config"]
     assert {"answered", "skipped_waiting"} <= set(v["progress"])
 

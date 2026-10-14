@@ -17,6 +17,10 @@ h3 { font-size: 1.05rem; }
 p { margin: 0 0 0.8em; }
 a { color: var(--primary-hover); }
 :root[data-theme="dark"] a { color: var(--primary); }
+/* Links styled as buttons (e.g. "Open study guide") keep button text colours in dark mode. */
+:root[data-theme="dark"] a.btn { color: var(--text); }
+:root[data-theme="dark"] a.btn.primary { color: var(--primary-contrast); }
+:root[data-theme="dark"] a.btn.ghost { color: var(--muted); }
 code, pre { font-family: var(--mono); font-size: 0.9em; }
 :not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 5px; }
 pre { background: var(--code-bg); padding: 12px 14px; border-radius: var(--radius-sm); overflow-x: auto; border: 1px solid var(--border); }
@@ -392,3 +396,14 @@ fieldset:disabled .chip, fieldset:disabled .segmented button { cursor: default; 
 .chat-input .btn { height: 44px; }
 /* Wide windows: move the quiz aside so the chat doesn't cover it. */
 @media (min-width: 1100px) { .page.has-chat { margin-right: 436px; } }
+
+/* --- Report question ---------------------------------------------------------- */
+.report-modal { width: min(520px, 100%); }
+.report-reasons { display: flex; flex-direction: column; gap: 6px; }
+.report-reason {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; font-weight: 550;
+}
+.report-reason:hover { background: var(--surface-2); }
+.report-reason.on { border-color: var(--primary); background: var(--primary-soft); }
+.report-reason input { accent-color: var(--primary-strong); margin: 0; }

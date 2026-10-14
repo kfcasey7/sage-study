@@ -14,8 +14,10 @@ def answered_items(session_id: str) -> list[dict[str, Any]]:
     rows = db.query(
         "SELECT q.id, q.position, q.type, q.subtopic_id, q.difficulty, q.payload_json, q.display_json, "
         "a.response_json, a.confidence, a.skipped, a.grade_status, a.score, a.verdict, a.feedback, "
-        "a.model_answer, a.misconception, a.details_json, a.grade_error, a.graded_by "
+        "a.model_answer, a.misconception, a.details_json, a.grade_error, a.graded_by, "
+        "rp.reason AS report_reason, rp.note AS report_note "
         "FROM questions q JOIN answers a ON a.question_id = q.id "
+        "LEFT JOIN question_reports rp ON rp.question_id = q.id "
         "WHERE q.session_id = ? ORDER BY q.position",
         (session_id,),
     )
@@ -48,10 +50,21 @@ def answered_items(session_id: str) -> list[dict[str, Any]]:
             "correct_answer": r["model_answer"] or correct_answer_text(payload),
             "criteria": (db.loads(r["details_json"], {}) or {}).get("criteria", []),
             "graded_by": r["graded_by"],
+            # Reported as poorly made: shown in the review, but left out of every score.
+            "reported": r["report_reason"] is not None,
+            "report_reason": config.REPORT_REASON_LABELS.get(r["report_reason"]) if r["report_reason"] else None,
         }
         item["confidently_wrong"] = is_confidently_wrong(item)
         items.append(item)
     return items
+
+
+def scored(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [i for i in items if not i["reported"]]
+
+
+def scored_mastery(session_id: str) -> dict[str, Any]:
+    return compute_mastery(scored(answered_items(session_id)), S.get_subtopics(session_id))
 
 
 def _seconds_between(start: str | None, end: str | None) -> float | None:
@@ -90,7 +103,7 @@ async def finish(session_id: str) -> dict[str, Any]:
             "(SELECT question_id FROM answers WHERE session_id = ?)",
             (session_id, session_id),
         )
-        mastery = compute_mastery(answered_items(session_id), S.get_subtopics(session_id))
+        mastery = scored_mastery(session_id)
         S.update_session(session_id, status="completed", completed_at=db.now(), score=mastery["overall"]["score"], error=None)
     return results(session_id)
 
@@ -99,7 +112,7 @@ def results(session_id: str) -> dict[str, Any]:
     session = S.get_session(session_id)
     items = answered_items(session_id)
     subtopics = S.get_subtopics(session_id)
-    mastery = compute_mastery(items, subtopics)
+    mastery = compute_mastery(scored(items), subtopics)
     guide = db.query_one("SELECT status FROM study_guides WHERE session_id = ?", (session_id,))
     return {
         "session": {
@@ -115,7 +128,8 @@ def results(session_id: str) -> dict[str, Any]:
         },
         "mastery": mastery,
         "questions": items,
-        "missed": [i for i in items if i["verdict"] != "correct" or i["confidently_wrong"]],
+        "missed": [i for i in scored(items) if i["verdict"] != "correct" or i["confidently_wrong"]],
+        "reported": [i["id"] for i in items if i["reported"]],
         "ungraded": [i["id"] for i in items if i["grade_status"] != "done"],
         "ai": ai_summary(session_id),
         "session_seconds": _seconds_between(session["created_at"], session["completed_at"]),
@@ -156,7 +170,7 @@ def trends(subject: str) -> dict[str, Any]:
     )
     data = []
     for s in sessions:
-        m = compute_mastery(answered_items(s["id"]), S.get_subtopics(s["id"]))
+        m = scored_mastery(s["id"])
         data.append({
             "session_id": s["id"], "created_at": s["created_at"], "score": s["score"], "title": s["title"],
             "subtopics": [{"name": r["name"], "score": r["score"]} for r in m["subtopics"]],

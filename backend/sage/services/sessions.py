@@ -14,7 +14,9 @@ def get_session(session_id: str) -> dict[str, Any]:
     row = db.query_one("SELECT * FROM sessions WHERE id = ?", (session_id,))
     if not row:
         raise AppError("not_found", "That study session no longer exists.")
-    row["config"] = db.loads(row.pop("config_json"), {})
+    row["config"] = cfg = db.loads(row.pop("config_json"), {})
+    if cfg and "languages" not in cfg:  # sessions from before several code languages could be picked
+        cfg["languages"] = [cfg.pop("language", None) or "Python"]
     row["error"] = db.loads(row.pop("error_json"), None)
     return row
 

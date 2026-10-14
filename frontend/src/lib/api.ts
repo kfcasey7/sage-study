@@ -64,7 +64,7 @@ export const api = {
 
   createSession: (body: {
     material: string; subject: string; upload_ids: string[]; types: string[]; difficulty: number;
-    adaptive: boolean; count: number; language: string;
+    adaptive: boolean; count: number; languages: string[];
   }) => post<SessionView>("/api/sessions", body),
   session: (id: string) => get<SessionView>(`/api/sessions/${id}`),
   deleteSession: (id: string) => del<{ ok: boolean }>(`/api/sessions/${id}`),
@@ -74,6 +74,8 @@ export const api = {
     post<AnswerView>(`/api/questions/${qid}/answer`, body),
   regrade: (qid: string) => post<AnswerView>(`/api/questions/${qid}/regrade`),
   deferQuestion: (qid: string) => post<{ ok: boolean; skipped_waiting: number }>(`/api/questions/${qid}/defer`),
+  reportQuestion: (qid: string, reason: string, note: string) =>
+    post<{ ok: boolean; replaced: boolean; excluded: boolean }>(`/api/questions/${qid}/report`, { reason, note }),
   questionChat: (qid: string) => get<ChatView>(`/api/questions/${qid}/chat`),
   askClaude: (qid: string, message: string) => post<ChatView>(`/api/questions/${qid}/chat`, { message }),
   updateOptions: (id: string, options: SessionOptions) => put<SessionView>(`/api/sessions/${id}/options`, options),

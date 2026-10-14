@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowRight, BookOpen, CircleHelp, Flag, Globe, HelpCircle, MessageCircleQuestion, Send, SkipForward, Undo2 } from "lucide-react";
+import { ArrowRight, BookOpen, CircleHelp, Flag, Globe, HelpCircle, MessageCircleQuestion, MessageSquareWarning, Send, SkipForward, Undo2 } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { AnswerView, ApiErrorBody, Confidence, QuestionView, SessionView } from "../lib/types";
 import { ErrorBanner, Loading } from "../components/common";
 import { SessionMenu } from "../components/SessionMenu";
 import { QuestionChat } from "../components/QuestionChat";
+import { ReportQuestionDialog, type ReportResult } from "../components/ReportQuestionDialog";
 import { Markdown } from "../components/Markdown";
 import { AnswerInput, isAnswered, PROMPT_INSIDE_INPUT } from "../answers/AnswerInput";
 import { FeedbackPanel } from "../answers/FeedbackPanel";
@@ -30,6 +31,8 @@ export default function Quiz() {
   const [progress, setProgress] = useState({ answered: 0, served: 0, skipped_waiting: 0 });
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reported, setReported] = useState<Set<string>>(new Set());
   const pollRef = useRef<number | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +121,17 @@ export default function Quiz() {
       setError(asApiError(e).toBody());
     } finally {
       setSubmitting(null);
+    }
+  }
+
+  function onReported(r: ReportResult) {
+    if (!q) return;
+    if (r.replaced) {
+      toast("Thanks for the report. That question was removed, and a new one will be added at the end.", "success");
+      void loadNext();
+    } else {
+      setReported((prev) => new Set(prev).add(q.id));
+      toast("Thanks for the report. This question won't count toward your score.", "success");
     }
   }
 
@@ -228,7 +242,14 @@ export default function Quiz() {
             {q.uses_outside_knowledge && (
               <span className="badge warn" title="This question relies on general knowledge beyond your uploaded material."><Globe size={12} /> Beyond your material</span>
             )}
+            {reported.has(q.id) && <span className="badge"><MessageSquareWarning size={12} /> Reported · won't count</span>}
             <span className="spacer" />
+            {!reported.has(q.id) && (
+              <button className="btn sm ghost" onClick={() => setReportOpen(true)} disabled={!!submitting || answer?.grade_status === "pending"}
+                title="Report a poorly made question (wrong answer key, unclear, off-topic…)">
+                <MessageSquareWarning size={15} /> Report
+              </button>
+            )}
             <button className="btn sm ghost" onClick={() => setChatOpen((o) => !o)} aria-pressed={chatOpen}
               title="Chat with Claude about this question">
               <MessageCircleQuestion size={15} /> Ask Claude
@@ -289,6 +310,10 @@ export default function Quiz() {
             )}
           </div>
         </div>
+      )}
+
+      {reportOpen && q && (
+        <ReportQuestionDialog questionId={q.id} answered={!!answer} onClose={() => setReportOpen(false)} onReported={onReported} />
       )}
 
       {chatOpen && phase === "question" && q && (

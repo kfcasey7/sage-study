@@ -93,10 +93,21 @@ QUESTION_TYPE_IDS = [t["id"] for t in QUESTION_TYPES]
 GRADING_MODE = {t["id"]: t["grading"] for t in QUESTION_TYPES}
 TYPE_LABELS = {t["id"]: t["label"] for t in QUESTION_TYPES}
 
-CODE_LANGUAGES = ["Python", "C++", "Java", "C", "MATLAB", "JavaScript"]
+CODE_LANGUAGES = ["Python", "C++", "Java", "C", "MATLAB", "JavaScript", "SQL", "JSON", "XML", "Assembly"]
 
 QUESTION_COUNTS = [5, 10, 15, 20]
 MAX_QUESTIONS = 50
+
+# "Report question" reasons (id -> label shown to the student and passed to Claude when writing later questions).
+REPORT_REASONS = [
+    {"id": "wrong_answer", "label": "The answer key is wrong"},
+    {"id": "unclear", "label": "Unclear or ambiguous"},
+    {"id": "off_topic", "label": "Not about my material"},
+    {"id": "broken", "label": "Broken formatting or missing information"},
+    {"id": "other", "label": "Something else"},
+]
+REPORT_REASON_LABELS = {r["id"]: r["label"] for r in REPORT_REASONS}
+REPORT_NOTE_MAX_CHARS = 1_000
 FIRST_BATCH = 2  # small first batch so the student can start sooner
 BATCH_SIZE = 3
 POOL_AHEAD = 3  # non-adaptive: keep at least this many unanswered questions generated

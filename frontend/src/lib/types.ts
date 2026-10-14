@@ -37,6 +37,7 @@ export interface SettingsPayload {
     difficulty_levels: Record<string, { label: string; description: string }>;
     question_types: QuestionTypeOption[];
     code_languages: string[];
+    report_reasons: { id: string; label: string }[];
     question_counts: number[];
     max_questions: number;
     max_file_mb: number;
@@ -62,7 +63,7 @@ export interface SessionConfig {
   difficulty: number;
   adaptive: boolean;
   count: number;
-  language: string;
+  languages: string[];
   feedback_mode: "immediate" | "end";
   model_fast: string;
   model_smart: string;
@@ -92,7 +93,7 @@ export interface SessionOptions {
   difficulty: number;
   adaptive: boolean;
   count: number;
-  language: string;
+  languages: string[];
   feedback_mode: "immediate" | "end";
 }
 
@@ -186,6 +187,9 @@ export interface ResultQuestion {
   correct_answer: string;
   criteria: CriterionResult[];
   confidently_wrong: boolean;
+  /** Reported as poorly made: shown, but not counted in any score. */
+  reported: boolean;
+  report_reason: string | null;
 }
 
 export interface AiSummary {
@@ -201,6 +205,7 @@ export interface Results {
   mastery: { overall: MasteryBucket; subtopics: SubtopicMastery[]; types: TypeMastery[]; weak_subtopic_ids: string[] };
   questions: ResultQuestion[];
   missed: ResultQuestion[];
+  reported: string[];
   ungraded: string[];
   ai: AiSummary;
   session_seconds: number | null;

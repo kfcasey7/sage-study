@@ -26,6 +26,7 @@ def _payload() -> dict:
             "difficulty_levels": config.DIFFICULTY_LEVELS,
             "question_types": config.QUESTION_TYPES,
             "code_languages": config.CODE_LANGUAGES,
+            "report_reasons": config.REPORT_REASONS,
             "question_counts": config.QUESTION_COUNTS,
             "max_questions": config.MAX_QUESTIONS,
             "max_file_mb": config.MAX_FILE_MB,

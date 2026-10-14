@@ -5,6 +5,7 @@ import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, SessionOptions, SessionView, UploadInfo } from "../lib/types";
 import { ErrorBanner, formatDateTime } from "./common";
+import { LanguagePicker } from "./LanguagePicker";
 
 function fileIcon(f: UploadInfo) {
   if (f.kind === "image") return <FileImage size={16} />;
@@ -37,7 +38,7 @@ export function SessionOptionsDialog({ sessionId, onClose, onSaved }: {
       .then((s) => {
         setSession(s);
         const c = s.config;
-        setOpts({ types: c.types, difficulty: c.difficulty, adaptive: c.adaptive, count: c.count, language: c.language, feedback_mode: c.feedback_mode });
+        setOpts({ types: c.types, difficulty: c.difficulty, adaptive: c.adaptive, count: c.count, languages: c.languages, feedback_mode: c.feedback_mode });
       })
       .catch((e) => setError(asApiError(e).toBody()));
   }, [sessionId]);
@@ -54,7 +55,7 @@ export function SessionOptionsDialog({ sessionId, onClose, onSaved }: {
   const original = session?.config;
   const dirty = !!(opts && original && (
     opts.types.join() !== original.types.join() || opts.difficulty !== original.difficulty || opts.adaptive !== original.adaptive
-    || opts.count !== original.count || opts.language !== original.language || opts.feedback_mode !== original.feedback_mode));
+    || opts.count !== original.count || opts.languages.join() !== original.languages.join() || opts.feedback_mode !== original.feedback_mode));
 
   async function save() {
     if (!opts) return;
@@ -155,12 +156,7 @@ export function SessionOptionsDialog({ sessionId, onClose, onSaved }: {
                   </div>
 
                   {needsLanguage && (
-                    <label className="field" style={{ maxWidth: 260 }}>
-                      Code language
-                      <select className="select" value={opts.language} onChange={(e) => setOpts({ ...opts, language: e.target.value })}>
-                        {o.code_languages.map((l) => <option key={l}>{l}</option>)}
-                      </select>
-                    </label>
+                    <LanguagePicker options={o.code_languages} value={opts.languages} onChange={(languages) => setOpts({ ...opts, languages })} />
                   )}
 
                   <div>
@@ -212,7 +208,7 @@ export function SessionOptionsDialog({ sessionId, onClose, onSaved }: {
           <button className="btn ghost" onClick={onClose}>{editable ? "Cancel" : "Close"}</button>
           {editable && (
             <button className="btn primary" onClick={save}
-              disabled={!dirty || saving || !opts || opts.types.length === 0 || opts.count < minCount}>
+              disabled={!dirty || saving || !opts || opts.types.length === 0 || opts.count < minCount || (needsLanguage && opts.languages.length === 0)}>
               {saving && <span className="spinner" />} Save changes
             </button>
           )}

@@ -12,7 +12,10 @@ next slot at every difficulty the answer could lead to, in a single call; the ma
 served and the rest discarded. The adaptive level (`sessions.current_difficulty`) moves when an answer
 is graded, so skipping a question doesn't change it.
 
-Question options (types, difficulty, adaptive, count, language) can be changed mid-session. Answered
+Code questions (code, error_analysis) carry a `language` in their plan entry, spread evenly across the
+languages the student picked.
+
+Question options (types, difficulty, adaptive, count, languages) can be changed mid-session. Answered
 questions and the one on screen are kept; upcoming and skipped questions that no longer fit are
 discarded and rewritten for their slot."""
 from __future__ import annotations
@@ -44,7 +47,7 @@ CODE_TYPES = {"code", "error_analysis"}
 
 # --- Validation shared by creation and option changes ----------------------------------
 
-def _clean_options(types: list[str], difficulty: int, count: int, language: str) -> list[str]:
+def _clean_options(types: list[str], difficulty: int, count: int, languages: list[str]) -> tuple[list[str], list[str]]:
     types = [t for t in config.QUESTION_TYPE_IDS if t in set(types)]
     if not types:
         raise AppError("bad_request", "Pick at least one question type.")
@@ -52,9 +55,32 @@ def _clean_options(types: list[str], difficulty: int, count: int, language: str)
         raise AppError("bad_request", "Difficulty must be between 1 and 5.")
     if not 1 <= count <= config.MAX_QUESTIONS:
         raise AppError("bad_request", f"Choose between 1 and {config.MAX_QUESTIONS} questions.")
-    if language and language not in config.CODE_LANGUAGES:
-        raise AppError("bad_request", f"Unsupported code language '{language}'.")
-    return types
+    for lang in languages:
+        if lang not in config.CODE_LANGUAGES:
+            raise AppError("bad_request", f"Unsupported code language '{lang}'.")
+    languages = list(dict.fromkeys(languages)) or ["Python"]
+    return types, languages
+
+
+def _assign_languages(plan: list, languages: list[str], seed: str, fixed: set[int] = frozenset()) -> None:
+    """Give each code slot a language, keeping the languages as evenly spread as possible. Slots in
+    `fixed` (answered, on screen, or with a usable question) and slots already using a picked language
+    keep theirs."""
+    counts = {lang: 0 for lang in languages}
+    todo = []
+    for i, entry in enumerate(plan):
+        if not entry or entry["type"] not in CODE_TYPES:
+            continue
+        if entry.get("language") in counts:
+            counts[entry["language"]] += 1
+        elif i not in fixed:
+            todo.append(i)
+    order = list(languages)
+    random.Random(seed).shuffle(order)
+    for i in todo:
+        lang = min(order, key=lambda lang: counts[lang])
+        counts[lang] += 1
+        plan[i] = {**plan[i], "language": lang}
 
 
 # --- Creation -------------------------------------------------------------------------
@@ -68,12 +94,12 @@ def create_session(
     difficulty: int,
     adaptive: bool,
     count: int,
-    language: str,
+    languages: list[str],
     settings: dict[str, Any],
     subtopics: list[dict[str, str]] | None = None,
     parent_session_id: str | None = None,
 ) -> str:
-    types = _clean_options(types, difficulty, count, language)
+    types, languages = _clean_options(types, difficulty, count, languages)
     if not material.strip() and not upload_ids:
         raise AppError("bad_request", "Describe what to cover or upload at least one document.")
     for uid in upload_ids:
@@ -90,7 +116,7 @@ def create_session(
         "difficulty": difficulty,
         "adaptive": adaptive,
         "count": count,
-        "language": language or "Python",
+        "languages": languages,
         "feedback_mode": settings["feedback_mode"],
         "model_fast": settings["model_fast"],
         "model_smart": settings["model_smart"],
@@ -129,6 +155,7 @@ def _store_subtopics(session_id: str, subtopics: list[dict[str, str]]) -> None:
     session = S.get_session(session_id)
     cfg = session["config"]
     cfg["slots"] = plan_slots(cfg["count"], [r["id"] for r in rows], cfg["types"], seed=session_id)
+    _assign_languages(cfg["slots"], cfg["languages"], seed=session_id)
     S.update_session(session_id, config=cfg)
 
 
@@ -224,6 +251,8 @@ def _still_wanted(cfg: dict[str, Any], req: dict[str, Any]) -> bool:
     slot = req["slot"]
     if slot >= len(plan) or not plan[slot] or plan[slot]["type"] != req["type"]:
         return False
+    if req["type"] in CODE_TYPES and plan[slot].get("language") != req.get("language"):
+        return False
     return cfg["adaptive"] or req["difficulty"] == cfg["difficulty"]
 
 
@@ -237,7 +266,8 @@ async def generate(session: dict[str, Any], wanted: list[dict[str, Any]]) -> int
     ]
     requests = [{"request": i, **w} for i, w in enumerate(wanted)]
     by_request = {r["request"]: r for r in requests}
-    instruction = generation_instruction(requests, subtopics, session["config"]["language"], previous)
+    instruction = generation_instruction(requests, subtopics, session["config"]["languages"][0], previous,
+                                         reported_questions(session["id"]))
 
     def validate(data: dict[str, Any]) -> tuple[dict[int, dict], list[str]]:
         good: dict[int, dict] = {}
@@ -279,6 +309,8 @@ async def generate(session: dict[str, Any], wanted: list[dict[str, Any]]) -> int
             continue
         # The answer key is trusted, but the slot metadata comes from our plan, not the model.
         q.update(slot=req["slot"], subtopic_id=req["subtopic_id"], difficulty=req["difficulty"])
+        if req.get("language") and (q["type"] == "code" or q.get("language")):
+            q["language"] = req["language"]
         qid = db.new_id()
         db.insert("questions", {
             "id": qid,
@@ -463,13 +495,60 @@ def defer_question(question_id: str) -> dict[str, Any]:
     return {"ok": True, "skipped_waiting": len(cfg["deferred_slots"])}
 
 
+# --- Reporting poorly made questions ----------------------------------------------------------
+
+def reported_questions(session_id: str) -> list[dict[str, Any]]:
+    rows = db.query(
+        "SELECT q.payload_json, r.reason, r.note FROM question_reports r JOIN questions q ON q.id = r.question_id "
+        "WHERE r.session_id = ? ORDER BY r.created_at", (session_id,))
+    return [{"prompt": db.loads(r["payload_json"])["prompt"], "reason": config.REPORT_REASON_LABELS.get(r["reason"], r["reason"]),
+             "note": r["note"]} for r in rows]
+
+
+def report_question(question_id: str, reason: str, note: str = "") -> dict[str, Any]:
+    """The question on screen is replaced by a new one for the same subtopic and type at the end of the
+    quiz. An answered question stays in the session but no longer counts toward the score."""
+    if reason not in config.REPORT_REASON_LABELS:
+        raise AppError("bad_request", "Pick a reason for the report.")
+    note = note.strip()[: config.REPORT_NOTE_MAX_CHARS]
+    row = db.query_one("SELECT * FROM questions WHERE id = ?", (question_id,))
+    if not row:
+        raise AppError("not_found", "Question not found.")
+    if row["status"] != "served":
+        raise AppError("conflict", "Only a question you've been shown can be reported.")
+    session = S.get_session(row["session_id"])
+    answered = bool(db.query_one("SELECT 1 FROM answers WHERE question_id = ?", (question_id,)))
+    if not answered and session["status"] == "completed":
+        raise AppError("conflict", "This session is already finished.")
+    db.execute(
+        "INSERT OR REPLACE INTO question_reports (question_id, session_id, reason, note, answered, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)", (question_id, session["id"], reason, note, int(answered), db.now()))
+    if answered:
+        if session["status"] == "completed":  # keep the stored score (history, trends) in step
+            from .results import scored_mastery
+            S.update_session(session["id"], score=scored_mastery(session["id"])["overall"]["score"])
+        return {"ok": True, "replaced": False, "excluded": True}
+
+    # On screen: drop it and plan a replacement at the end (same subtopic, type, and language).
+    cfg = session["config"]
+    plan = cfg["slots"]
+    plan.append(plan[row["slot"]])
+    plan[row["slot"]] = None
+    cfg["deferred_slots"] = [s for s in cfg.get("deferred_slots", []) if s != row["slot"]]
+    db.execute("UPDATE questions SET status = 'discarded' WHERE session_id = ? AND slot = ? AND status IN ('served', 'pool', 'deferred') "
+               "AND id NOT IN (SELECT question_id FROM answers WHERE session_id = ?)", (session["id"], row["slot"], session["id"]))
+    S.update_session(session["id"], config=cfg)
+    _kick(session["id"])
+    return {"ok": True, "replaced": True, "excluded": False}
+
+
 # --- Changing question options mid-session -------------------------------------------------
 
 def _fits(row: dict[str, Any], cfg: dict[str, Any], reset_level: bool) -> bool:
     """Does an upcoming (pool) or skipped (deferred) question still match the session's options?"""
     if row["type"] not in cfg["types"]:
         return False
-    if row["type"] in CODE_TYPES and row.get("language") and row["language"] != cfg["language"]:
+    if row["type"] in CODE_TYPES and row.get("language") and row["language"] not in cfg["languages"]:
         return False
     if not cfg["adaptive"]:
         return row["difficulty"] == cfg["difficulty"]
@@ -479,11 +558,11 @@ def _fits(row: dict[str, Any], cfg: dict[str, Any], reset_level: bool) -> bool:
 
 
 def update_options(session_id: str, *, types: list[str], difficulty: int, adaptive: bool, count: int,
-                   language: str, feedback_mode: str) -> dict[str, Any]:
+                   languages: list[str], feedback_mode: str) -> dict[str, Any]:
     session = S.get_session(session_id)
     if session["status"] == "completed":
         raise AppError("conflict", "This session is finished, so its options can't be changed. Start a retest instead.")
-    types = _clean_options(types, difficulty, count, language)
+    types, languages = _clean_options(types, difficulty, count, languages)
     if feedback_mode not in ("immediate", "end"):
         raise AppError("bad_request", "Unknown feedback mode.")
     cfg = session["config"]
@@ -494,7 +573,7 @@ def update_options(session_id: str, *, types: list[str], difficulty: int, adapti
                        f"{' and one is on screen' if on_screen else ''}, so the total can't be lower than {answered + on_screen}.")
 
     reset_level = adaptive != cfg["adaptive"] or difficulty != cfg["difficulty"]
-    cfg.update(types=types, difficulty=difficulty, adaptive=adaptive, count=count, language=language or "Python",
+    cfg.update(types=types, difficulty=difficulty, adaptive=adaptive, count=count, languages=languages,
                feedback_mode=feedback_mode)
     if reset_level and adaptive:
         S.update_session(session_id, current_difficulty=difficulty)
@@ -554,5 +633,7 @@ def _replan(session_id: str, cfg: dict[str, Any], reset_level: bool) -> None:
             plan[i] = None
             db.execute("UPDATE questions SET status = 'discarded' WHERE session_id = ? AND slot = ? AND status IN ('pool', 'deferred')",
                        (session_id, i))
+    # 4. Code slots that aren't fixed yet use the new languages.
+    _assign_languages(plan, cfg["languages"], seed=f"{session_id}-{len(plan)}", fixed=served | keep_slots)
     cfg["slots"] = plan
     cfg["deferred_slots"] = [s for s in cfg.get("deferred_slots", []) if s < len(plan) and plan[s] and s not in served]
