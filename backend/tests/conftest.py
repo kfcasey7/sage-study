@@ -21,6 +21,13 @@ def isolated_data(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "LLM_TMP_DIR", tmp_path / "llm_tmp")
     db.init_db()
     S._material_cache.clear()
+    # Never touch the real credential store: keep the YouTube key in memory.
+    from sage import secrets
+
+    store: dict[str, str] = {}
+    monkeypatch.setattr(secrets, "get_youtube_key", lambda: store.get("key"))
+    monkeypatch.setattr(secrets, "set_youtube_key", lambda key: store.__setitem__("key", key))
+    monkeypatch.setattr(secrets, "delete_youtube_key", lambda: store.pop("key", None))
     yield tmp_path
 
 
@@ -47,3 +54,6 @@ def wait_for(fn: Callable[[], Any], timeout: float = 10.0, interval: float = 0.0
             return result
         time.sleep(interval)
     raise AssertionError("timed out waiting for condition")
+
+
+from .web_mock import web  # noqa: E402,F401 - fixture: a fake internet for link and YouTube tests

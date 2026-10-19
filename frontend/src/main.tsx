@@ -4,6 +4,7 @@ import "@fontsource-variable/inter";
 import "katex/dist/katex.min.css";
 import "./styles/tokens.css";
 import "./styles/app.css";
+import "./styles/sets.css";
 import App from "./App";
 
 createRoot(document.getElementById("root")!).render(

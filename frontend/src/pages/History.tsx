@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowDownRight, ArrowUpRight, BookOpenCheck, History as HistoryIcon, Minus, Repeat, TrendingUp } from "lucide-react";
-import { SessionMenu } from "../components/SessionMenu";
+import { ArrowDownRight, ArrowUpRight, BookOpenCheck, ClipboardList, History as HistoryIcon, Layers, ListVideo, Minus, TrendingUp } from "lucide-react";
+import { SetMenu } from "../components/SetMenu";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
-import type { ApiErrorBody, HistoryRow, Trends } from "../lib/types";
-import { ErrorBanner, formatDate, formatDuration, Loading, scoreColor } from "../components/common";
+import type { ApiErrorBody, StudySetRow, Trends } from "../lib/types";
+import { ErrorBanner, formatDate, Loading, scoreColor } from "../components/common";
 
 function Change({ value }: { value: number | null }) {
   if (value == null) return <span className="muted small">first attempt</span>;
@@ -23,13 +23,13 @@ function Change({ value }: { value: number | null }) {
 export default function History() {
   const navigate = useNavigate();
   const { theme, historyVersion } = useApp();
-  const [rows, setRows] = useState<HistoryRow[] | null>(null);
+  const [rows, setRows] = useState<StudySetRow[] | null>(null);
   const [subject, setSubject] = useState<string>("");
   const [trends, setTrends] = useState<Trends | null>(null);
   const [error, setError] = useState<ApiErrorBody | null>(null);
 
   useEffect(() => {
-    api.history().then(setRows).catch((e) => setError(asApiError(e).toBody()));
+    api.sets().then(setRows).catch((e) => setError(asApiError(e).toBody()));
   }, [historyVersion]);
 
   const subjects = useMemo(() => Array.from(new Set((rows ?? []).filter((r) => r.subject).map((r) => r.subject))), [rows]);
@@ -51,7 +51,7 @@ export default function History() {
       <div className="page-header">
         <div>
           <h1>History</h1>
-          <p>Past sessions, and how your mastery is trending.</p>
+          <p>Your study sets, and how your mastery is trending.</p>
         </div>
         {subjects.length > 0 && (
           <select className="select" style={{ width: 240 }} value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Filter by subject">
@@ -65,8 +65,8 @@ export default function History() {
       {rows.length === 0 ? (
         <div className="card empty">
           <HistoryIcon size={40} />
-          <p>No sessions yet. Your completed sessions and study guides will show up here.</p>
-          <button className="btn primary" onClick={() => navigate("/")}>Start a session</button>
+          <p>No study sets yet. Your study sets, with their quizzes, study guides, and playlists, will show up here.</p>
+          <button className="btn primary" onClick={() => navigate("/")}>Create a study set</button>
         </div>
       ) : (
         <>
@@ -87,7 +87,7 @@ export default function History() {
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <p className="muted">Complete another {subject} session to see a trend line.</p>
+                  <p className="muted">Complete another {subject} quiz to see a trend line.</p>
                 )}
               </section>
               <section className="card" style={{ marginTop: 0 }}>
@@ -108,28 +108,33 @@ export default function History() {
           <section className="card" style={{ marginTop: 18 }}>
             <table className="data">
               <thead>
-                <tr><th>Date</th><th>Session</th><th>Subject</th><th>Score</th><th>Questions</th><th>AI calls</th><th>Time</th><th /></tr>
+                <tr><th>Last activity</th><th>Study set</th><th>Subject</th><th>Last score</th><th>Made from it</th><th /></tr>
               </thead>
               <tbody>
                 {visible.map((r) => (
-                  <tr key={r.id} className="clickable" onClick={() => navigate(r.status === "completed" ? `/results/${r.id}` : `/quiz/${r.id}`)}>
-                    <td className="small">{formatDate(r.created_at)}</td>
+                  <tr key={r.id} className="clickable" onClick={() => navigate(`/sets/${r.id}`)}>
+                    <td className="small">{formatDate(r.last_activity || r.updated_at)}</td>
                     <td>
-                      <div style={{ fontWeight: 600 }}>{r.title || "Untitled session"}</div>
+                      <div style={{ fontWeight: 600 }}>{r.title || "Untitled study set"}</div>
                       <div className="row small muted" style={{ gap: 6 }}>
-                        {r.parent_session_id && <span className="badge"><Repeat size={11} /> Retest</span>}
-                        {r.adaptive && <span className="badge">Adaptive</span>}
-                        {r.guide_status === "ready" && <span className="badge primary"><BookOpenCheck size={11} /> Study guide</span>}
-                        {r.status !== "completed" && <span className="badge warn">In progress · click to resume</span>}
+                        <span><Layers size={11} style={{ verticalAlign: -1 }} /> {r.subtopics} subtopic{r.subtopics === 1 ? "" : "s"} · {r.sources} source{r.sources === 1 ? "" : "s"}</span>
+                        {r.breakdown_status === "generating" && <span className="badge primary">Building breakdown…</span>}
+                        {r.breakdown_status === "legacy" && <span className="badge">From an earlier session</span>}
+                        {r.breakdown_status === "failed" && <span className="badge warn">Breakdown failed</span>}
+                        {r.in_progress > 0 && <span className="badge warn">{r.in_progress} quiz{r.in_progress === 1 ? "" : "zes"} in progress</span>}
                       </div>
                     </td>
                     <td className="small">{r.subject || <span className="muted">–</span>}</td>
-                    <td>{r.score != null ? <strong style={{ color: scoreColor(r.score) }}>{Math.round(r.score)}%</strong> : <span className="muted">–</span>}</td>
-                    <td className="small">{r.answered}/{r.count}</td>
-                    <td className="small">{r.ai_calls}</td>
-                    <td className="small" title={`${formatDuration(r.ai_seconds)} waiting on Claude`}>{r.session_seconds != null ? formatDuration(r.session_seconds) : <span className="muted">in progress</span>}</td>
+                    <td>{r.last_score != null ? <strong style={{ color: scoreColor(r.last_score) }}>{Math.round(r.last_score)}%</strong> : <span className="muted">–</span>}</td>
+                    <td className="small">
+                      <div className="row" style={{ gap: 10 }}>
+                        <span title="Quizzes"><ClipboardList size={13} style={{ verticalAlign: -2 }} /> {r.quizzes}</span>
+                        <span title="Study guides"><BookOpenCheck size={13} style={{ verticalAlign: -2 }} /> {r.guides}</span>
+                        <span title="Video playlists"><ListVideo size={13} style={{ verticalAlign: -2 }} /> {r.playlists}</span>
+                      </div>
+                    </td>
                     <td onClick={(e) => e.stopPropagation()} style={{ width: 56, textAlign: "right" }}>
-                      <SessionMenu sessionId={r.id} label={`Options for ${r.title || "session"}`} />
+                      <SetMenu setId={r.id} label={`Options for ${r.title || "study set"}`} />
                     </td>
                   </tr>
                 ))}

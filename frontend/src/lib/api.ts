@@ -1,6 +1,7 @@
 import type {
-  AnswerView, ApiErrorBody, ChatView, CliStatus, Confidence, HistoryRow, NextResponse, Results, SessionOptions, SessionView,
-  SettingsPayload, StudyGuide, StudySection, Trends, UploadInfo,
+  AnswerView, ApiErrorBody, ChatView, CliStatus, Confidence, HistoryRow, NextResponse, PlaylistView, QuestionVideos, Results,
+  SessionOptions, SessionView, SettingsPayload, SourceView, StudyGuide, StudySection, StudySetRow, StudySetView, Trends,
+  UploadInfo, YoutubeKeyStatus,
 } from "./types";
 
 export class ApiError extends Error {
@@ -49,6 +50,13 @@ const get = <T,>(p: string) => request<T>("GET", p);
 const post = <T,>(p: string, b?: unknown) => request<T>("POST", p, b ?? {});
 const put = <T,>(p: string, b: unknown) => request<T>("PUT", p, b);
 const del = <T,>(p: string) => request<T>("DELETE", p);
+const patch = <T,>(p: string, b: unknown) => request<T>("PATCH", p, b);
+
+/** Study guide endpoints: a quiz's weak-areas guide lives under its session, any guide under its id. */
+export const guideBase = (ref: { sessionId: string } | { guideId: string }) =>
+  "sessionId" in ref ? `/api/sessions/${ref.sessionId}/study-guide` : `/api/guides/${ref.guideId}`;
+
+export interface QuizOptionsBody { types: string[]; difficulty: number; adaptive: boolean; count: number; languages: string[] }
 
 export const api = {
   settings: () => get<SettingsPayload>("/api/settings"),
@@ -84,15 +92,56 @@ export const api = {
   retest: (id: string) => post<SessionView>(`/api/sessions/${id}/retest`),
 
   startGuide: (id: string, force = false) => post<StudyGuide>(`/api/sessions/${id}/study-guide`, { force }),
-  guide: (id: string) => get<StudyGuide>(`/api/sessions/${id}/study-guide`),
-  retryGuideSection: (id: string, subtopicId: string) => post<StudyGuide>(`/api/sessions/${id}/study-guide/sections/${subtopicId}/retry`),
-  repairDiagram: (id: string, subtopic_id: string, error: string) =>
-    post<StudySection>(`/api/sessions/${id}/study-guide/repair-diagram`, { subtopic_id, error }),
-  exportMarkdown: (id: string) => post<{ path?: string; cancelled?: boolean }>(`/api/sessions/${id}/study-guide/export/markdown`),
-  exportPdf: (id: string, body_html: string, head_html: string) =>
-    post<{ path?: string; cancelled?: boolean; fallback?: "print"; message?: string }>(`/api/sessions/${id}/study-guide/export/pdf`, { body_html, head_html }),
+  guide: (base: string) => get<StudyGuide>(base),
+  retryGuideSection: (base: string, subtopicId: string) => post<StudyGuide>(`${base}/sections/${subtopicId}/retry`),
+  repairDiagram: (base: string, subtopic_id: string, error: string) => post<StudySection>(`${base}/repair-diagram`, { subtopic_id, error }),
+  exportMarkdown: (base: string) => post<{ path?: string; cancelled?: boolean }>(`${base}/export/markdown`),
+  exportPdf: (base: string, body_html: string, head_html: string) =>
+    post<{ path?: string; cancelled?: boolean; fallback?: "print"; message?: string }>(`${base}/export/pdf`, { body_html, head_html }),
+  deleteGuide: (guideId: string) => del<{ ok: boolean }>(`/api/guides/${guideId}`),
   reveal: (path: string) => post<{ ok: boolean }>("/api/reveal", { path }),
   openFile: (path: string) => post<{ ok: boolean }>("/api/open-file", { path }),
+
+  // Sources (setup-screen drafts, or a set's Append panel)
+  addFileSource: (file: File, scope: { set_id?: string; draft_id?: string }) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (scope.set_id) fd.append("set_id", scope.set_id);
+    if (scope.draft_id) fd.append("draft_id", scope.draft_id);
+    return request<SourceView>("POST", "/api/sources/files", fd);
+  },
+  addLinkSources: (urls: string[], scope: { set_id?: string; draft_id?: string }) =>
+    post<(SourceView & { id: string | null })[]>("/api/sources/links", { urls, ...scope }),
+  sources: (ids: string[]) => get<SourceView[]>(`/api/sources?ids=${ids.join(",")}`),
+  retrySource: (id: string) => post<SourceView>(`/api/sources/${id}/retry`),
+  deleteSource: (id: string) => del<{ ok: boolean }>(`/api/sources/${id}`),
+
+  // Study Sets
+  createSet: (body: { title: string; subject: string; prompt: string; source_ids: string[] }) => post<StudySetView>("/api/sets", body),
+  sets: () => get<StudySetRow[]>("/api/sets"),
+  set: (id: string) => get<StudySetView>(`/api/sets/${id}`),
+  updateSet: (id: string, body: { title?: string; subject?: string }) => patch<StudySetView>(`/api/sets/${id}`, body),
+  deleteSet: (id: string) => del<{ ok: boolean }>(`/api/sets/${id}`),
+  buildBreakdown: (id: string) => post<StudySetView>(`/api/sets/${id}/breakdown`),
+  appendToSet: (id: string, prompt: string) => post<StudySetView>(`/api/sets/${id}/append`, { prompt }),
+  repairMap: (id: string, error: string) => post<StudySetView["breakdown"]>(`/api/sets/${id}/breakdown/repair-map`, { error }),
+  startSetQuiz: (id: string, subtopic_ids: string[], options: QuizOptionsBody) =>
+    post<SessionView>(`/api/sets/${id}/quiz`, { subtopic_ids, ...options }),
+  startSetGuide: (id: string, subtopic_ids: string[]) => post<StudyGuide>(`/api/sets/${id}/guides`, { subtopic_ids }),
+  startPlaylist: (id: string, subtopic_ids: string[]) => post<PlaylistView>(`/api/sets/${id}/playlists`, { subtopic_ids }),
+
+  // Videos
+  playlist: (id: string) => get<PlaylistView>(`/api/playlists/${id}`),
+  deletePlaylist: (id: string) => del<{ ok: boolean }>(`/api/playlists/${id}`),
+  setWatched: (itemId: string, watched: boolean) => put<{ ok: boolean; watched: boolean }>(`/api/playlist-items/${itemId}`, { watched }),
+  replaceVideo: (itemId: string) => post<PlaylistView>(`/api/playlist-items/${itemId}/replace`),
+  moreVideos: (playlistId: string, subtopic_id: string) => post<PlaylistView>(`/api/playlists/${playlistId}/more`, { subtopic_id }),
+  questionVideos: (qid: string) => get<QuestionVideos>(`/api/questions/${qid}/videos`),
+  findQuestionVideos: (qid: string) => post<QuestionVideos>(`/api/questions/${qid}/videos`),
+  openUrl: (url: string) => post<{ ok: boolean }>("/api/open-url", { url }),
+  youtubeKey: () => get<YoutubeKeyStatus>("/api/settings/youtube-key"),
+  saveYoutubeKey: (key: string) => put<YoutubeKeyStatus>("/api/settings/youtube-key", { key }),
+  deleteYoutubeKey: () => del<YoutubeKeyStatus>("/api/settings/youtube-key"),
 
   history: () => get<HistoryRow[]>("/api/history"),
   subjects: () => get<string[]>("/api/subjects"),

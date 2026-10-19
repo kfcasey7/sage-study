@@ -1,131 +1,75 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, FileImage, FileText, Presentation, Sparkles, Upload, X } from "lucide-react";
+import { BookOpenCheck, ClipboardList, Layers, ListVideo, Sparkles } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
-import { LanguagePicker } from "../components/LanguagePicker";
-import type { ApiErrorBody, UploadInfo } from "../lib/types";
+import type { ApiErrorBody, SourceView } from "../lib/types";
 import { ErrorBanner, InfoBanner, Loading } from "../components/common";
+import { SourceAdder, SourceCard } from "../components/Sources";
 
-interface LocalFile {
-  key: string;
-  name: string;
-  size: number;
-  status: "uploading" | "ready" | "error";
-  info?: UploadInfo;
-  error?: string;
+function newDraftId(): string {
+  try { return crypto.randomUUID(); } catch { return `${Date.now()}-${Math.random().toString(36).slice(2)}`; }
 }
 
-interface Prefs { types: string[]; difficulty: number; adaptive: boolean; count: number; languages: string[] }
-const DEFAULT_PREFS: Prefs = { types: ["multiple_choice", "true_false", "short_response"], difficulty: 3, adaptive: false, count: 10, languages: ["Python"] };
-
-function loadPrefs(): Prefs {
-  try {
-    const saved = JSON.parse(localStorage.getItem("sage-new-session") || "{}");
-    // Saved before several languages could be picked: { language: "C++" }
-    if (!Array.isArray(saved.languages) && typeof saved.language === "string") saved.languages = [saved.language];
-    delete saved.language;
-    return { ...DEFAULT_PREFS, ...saved };
-  } catch { return DEFAULT_PREFS; }
-}
-
-function fileIcon(name: string) {
-  const ext = name.split(".").pop()?.toLowerCase() ?? "";
-  if (["png", "jpg", "jpeg"].includes(ext)) return <FileImage size={18} />;
-  if (ext === "pptx") return <Presentation size={18} />;
-  return <FileText size={18} />;
-}
-
-function readyLabel(f: LocalFile): string {
-  const info = f.info;
-  if (info?.kind === "text" && info.char_count) return `${info.char_count.toLocaleString()} characters extracted`;
-  if (info?.kind === "pdf") return "Scanned PDF · Claude will read the pages directly";
-  if (info?.kind === "image") return `Image · Claude will read it directly · ${formatSize(f.size)}`;
-  return `Ready · ${formatSize(f.size)}`;
-}
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
+/** Setup: what to cover and the sources (files and links). Creating the set builds its Material Breakdown,
+ *  where you choose to make a study guide, take a quiz, or build a video playlist. */
 export default function NewSession() {
   const { settings, cli, bumpHistory } = useApp();
   const navigate = useNavigate();
-  const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
-  const [material, setMaterial] = useState("");
+  const [draftId] = useState(newDraftId);
+  const [title, setTitle] = useState("");
+  const [prompt, setPrompt] = useState("");
   const [subject, setSubject] = useState("");
   const [subjects, setSubjects] = useState<string[]>([]);
-  const [files, setFiles] = useState<LocalFile[]>([]);
-  const [drag, setDrag] = useState(false);
-  const [customCount, setCustomCount] = useState(!([5, 10, 15, 20].includes(loadPrefs().count)));
-  const [starting, setStarting] = useState(false);
+  const [sources, setSources] = useState<SourceView[]>([]);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<ApiErrorBody | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => { api.subjects().then(setSubjects).catch(() => setSubjects([])); }, []);
-  useEffect(() => { try { localStorage.setItem("sage-new-session", JSON.stringify(prefs)); } catch { /* ignore */ } }, [prefs]);
+
+  // Links are read in the background: poll until each is ready or couldn't be read.
+  const processing = sources.filter((s) => s.status === "processing").map((s) => s.id);
+  const processingKey = processing.join(",");
+  useEffect(() => {
+    if (!processingKey) return;
+    const t = window.setInterval(() => {
+      api.sources(processingKey.split(",")).then((rows) => {
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        setSources((list) => list.map((s) => byId.get(s.id) ?? s));
+      }).catch(() => { /* try again next tick */ });
+    }, 1500);
+    return () => window.clearInterval(t);
+  }, [processingKey]);
 
   if (!settings) return <Loading message="Getting things ready…" rotate={false} />;
-  const opts = settings.options;
-  const level = opts.difficulty_levels[String(prefs.difficulty)];
-  const needsLanguage = prefs.types.includes("code") || prefs.types.includes("error_analysis");
-  const uploading = files.some((f) => f.status === "uploading");
-  const readyFiles = files.filter((f) => f.status === "ready" && f.info);
-  const canStart = !starting && !uploading && prefs.types.length > 0 && (material.trim().length > 0 || readyFiles.length > 0)
-    && (!needsLanguage || prefs.languages.length > 0)
-    && prefs.count >= 1 && prefs.count <= opts.max_questions;
+  const usable = sources.filter((s) => s.status !== "failed");
+  const canCreate = !creating && (prompt.trim().length > 0 || usable.length > 0);
 
-  function addFiles(list: FileList | File[]) {
-    const accepted = new Set(opts.extensions);
-    for (const file of Array.from(list)) {
-      const key = `${file.name}-${file.size}-${Math.random()}`;
-      const ext = "." + (file.name.split(".").pop() ?? "").toLowerCase();
-      if (!accepted.has(ext)) {
-        setFiles((f) => [...f, { key, name: file.name, size: file.size, status: "error", error: `Unsupported type. Use ${opts.extensions.join(", ")}.` }]);
-        continue;
-      }
-      if (file.size > opts.max_file_mb * 1024 * 1024) {
-        setFiles((f) => [...f, { key, name: file.name, size: file.size, status: "error", error: `Larger than ${opts.max_file_mb} MB.` }]);
-        continue;
-      }
-      setFiles((f) => [...f, { key, name: file.name, size: file.size, status: "uploading" }]);
-      api.upload(file)
-        .then((info) => setFiles((f) => f.map((x) => (x.key === key ? { ...x, status: "ready", info } : x))))
-        .catch((e) => setFiles((f) => f.map((x) => (x.key === key ? { ...x, status: "error", error: asApiError(e).message } : x))));
-    }
+  function remove(s: SourceView) {
+    setSources((list) => list.filter((x) => x.id !== s.id));
+    api.deleteSource(s.id).catch(() => { /* removed at the next startup cleanup */ });
   }
 
-  function removeFile(f: LocalFile) {
-    setFiles((list) => list.filter((x) => x.key !== f.key));
-    if (f.info) api.deleteUpload(f.info.id).catch(() => { /* file just stays orphaned in app data */ });
+  async function retry(s: SourceView) {
+    try {
+      const r = await api.retrySource(s.id);
+      setSources((list) => list.map((x) => (x.id === s.id ? r : x)));
+    } catch (e) { setError(asApiError(e).toBody()); }
   }
 
-  function onDrop(e: DragEvent) {
-    e.preventDefault();
-    setDrag(false);
-    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-  }
-
-  function toggleType(id: string) {
-    setPrefs((p) => ({ ...p, types: p.types.includes(id) ? p.types.filter((t) => t !== id) : [...p.types, id] }));
-  }
-
-  async function start() {
-    setStarting(true);
+  async function create() {
+    setCreating(true);
     setError(null);
     try {
-      const s = await api.createSession({
-        material, subject, upload_ids: readyFiles.map((f) => f.info!.id), types: prefs.types,
-        difficulty: prefs.difficulty, adaptive: prefs.adaptive, count: prefs.count,
-        languages: prefs.languages.length ? prefs.languages : ["Python"],
-      });
+      const set = await api.createSet({ title, subject, prompt, source_ids: usable.map((s) => s.id) });
+      // Unreadable links stay out of the set; drop them now rather than at the next cleanup.
+      sources.filter((s) => s.status === "failed").forEach((s) => api.deleteSource(s.id).catch(() => undefined));
       bumpHistory();
-      navigate(`/quiz/${s.id}`);
+      navigate(`/sets/${set.id}`);
     } catch (e) {
       setError(asApiError(e).toBody());
-      setStarting(false);
+      setCreating(false);
     }
   }
 
@@ -133,8 +77,8 @@ export default function NewSession() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>New study session</h1>
-          <p>Tell Sage what to cover, add your notes or slides, and choose how you want to be quizzed.</p>
+          <h1>New study set</h1>
+          <p>Tell Sage what to cover and add your notes, slides, and links. You'll get a breakdown of the material, then choose what to do with it.</p>
         </div>
       </div>
 
@@ -143,129 +87,60 @@ export default function NewSession() {
           {cli.message} <a href="#/settings">Open Settings</a> for details.
         </InfoBanner>
       )}
-      <ErrorBanner error={error} onRetry={start} />
+      <ErrorBanner error={error} onRetry={create} />
 
       <section className="card stack">
+        <div className="grid-2">
+          <label className="field">
+            Title <span className="field-hint">Optional. Sage suggests one from your material.</span>
+            <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Midterm 2 review" maxLength={120} />
+          </label>
+          <label className="field">
+            Subject <span className="field-hint">Optional. Used to track your mastery over time.</span>
+            <input className="input" list="subjects" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Signals & Systems" maxLength={80} />
+            <datalist id="subjects">{subjects.map((s) => <option key={s} value={s} />)}</datalist>
+          </label>
+        </div>
         <label className="field">
-          Subject <span className="field-hint">Optional. Used to track your mastery over time, e.g. "Thermodynamics" or "ECE 210".</span>
-          <input className="input" list="subjects" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Signals & Systems" maxLength={80} />
-          <datalist id="subjects">{subjects.map((s) => <option key={s} value={s} />)}</datalist>
-        </label>
-        <label className="field">
-          What material should be covered?
-          <span className="field-hint">A topic, chapter, or learning objectives. Be as specific as you like.</span>
-          <textarea className="textarea" rows={4} value={material} onChange={(e) => setMaterial(e.target.value)}
+          What should this study set cover?
+          <span className="field-hint">A topic, chapter, or learning objectives. Be as specific as you like. You can add more later.</span>
+          <textarea className="textarea" rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)}
             placeholder={"e.g. Chapter 4: Laplace transforms. Focus on partial fractions, initial/final value theorems, and solving RLC circuits."} />
         </label>
 
         <div>
-          <div className="field" style={{ marginBottom: 6 }}>Documents <span className="field-hint">PDF, Word, PowerPoint, text/Markdown, or photos of notes and slides (PNG/JPG), up to {opts.max_file_mb} MB each.</span></div>
-          <div
-            className={`dropzone ${drag ? "drag" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={onDrop}
-            onClick={() => inputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") inputRef.current?.click(); }}
-          >
-            <Upload size={26} />
-            <div><strong>Drop files here</strong> or click to browse</div>
-            <input ref={inputRef} type="file" multiple hidden accept={opts.extensions.join(",")}
-              onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }} />
-          </div>
-          {files.length > 0 && (
-            <div className="file-list">
-              {files.map((f) => (
-                <div key={f.key} className={`file-item ${f.status === "error" ? "error" : ""}`}>
-                  {fileIcon(f.name)}
-                  <span className="name" title={f.name}>{f.name}</span>
-                  <span className="status">
-                    {f.status === "uploading" && <><span className="spinner" /> Uploading…</>}
-                    {f.status === "ready" && <><CheckCircle2 size={14} color="var(--correct)" /> {readyLabel(f)}</>}
-                    {f.status === "error" && f.error}
-                  </span>
-                  <button className="icon-btn" onClick={() => removeFile(f)} aria-label={`Remove ${f.name}`}><X size={16} /></button>
-                </div>
+          <div className="field" style={{ marginBottom: 6 }}>Sources <span className="field-hint">Files and links. Pages that need a login can't be read; upload the file instead.</span></div>
+          <SourceAdder scope={{ draft_id: draftId }} onAdded={(added) => setSources((list) => [...list, ...added])} inputRef={fileInput} />
+          {sources.length > 0 && (
+            <div className="source-list">
+              {sources.map((s) => (
+                <SourceCard key={s.id} source={s} onRemove={() => remove(s)} onRetry={() => void retry(s)}
+                  onUploadInstead={() => fileInput.current?.click()} />
               ))}
             </div>
           )}
         </div>
       </section>
 
-      <section className="card stack">
-        <div>
-          <div className="card-title">
-            <h3>Question types</h3>
-            <div className="row">
-              <button className="btn sm ghost" onClick={() => setPrefs((p) => ({ ...p, types: opts.question_types.map((t) => t.id) }))}>Select all</button>
-              <button className="btn sm ghost" onClick={() => setPrefs((p) => ({ ...p, types: [] }))}>Clear</button>
-            </div>
-          </div>
-          <div className="chips" role="group" aria-label="Question types">
-            {opts.question_types.map((t) => (
-              <button key={t.id} className={`chip ${prefs.types.includes(t.id) ? "on" : ""}`} onClick={() => toggleType(t.id)} aria-pressed={prefs.types.includes(t.id)}>
-                {prefs.types.includes(t.id) && <CheckCircle2 size={14} />} {t.label}
-              </button>
-            ))}
-          </div>
-          {prefs.types.length === 0 && <div className="small" style={{ color: "var(--incorrect)", marginTop: 8 }}>Pick at least one type.</div>}
-        </div>
-
-        {needsLanguage && (
-          <LanguagePicker options={opts.code_languages} value={prefs.languages} onChange={(languages) => setPrefs((p) => ({ ...p, languages }))} />
-        )}
-
-        <div>
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <h3 style={{ margin: 0 }}>Difficulty</h3>
-            <span className="badge primary">{prefs.difficulty} · {level.label}</span>
-          </div>
-          <input className="slider" type="range" min={1} max={5} step={1} value={prefs.difficulty}
-            onChange={(e) => setPrefs((p) => ({ ...p, difficulty: Number(e.target.value) }))} aria-label="Difficulty" />
-          <div className="slider-labels">
-            {[1, 2, 3, 4, 5].map((d) => <span key={d} className={d === prefs.difficulty ? "on" : ""}>{opts.difficulty_levels[String(d)].label}</span>)}
-          </div>
-          <div className="muted small" style={{ marginTop: 6 }}>{level.description}</div>
-        </div>
-
-        <label className="switch">
-          <input type="checkbox" checked={prefs.adaptive} onChange={(e) => setPrefs((p) => ({ ...p, adaptive: e.target.checked }))} />
-          <span className="track" />
-          <span>
-            Adaptive difficulty
-            <div className="muted small" style={{ fontWeight: 400 }}>Questions get harder after correct answers and easier after misses, starting from the level above.</div>
-          </span>
-        </label>
-
-        <div>
-          <h3>Number of questions</h3>
-          <div className="row">
-            <div className="segmented">
-              {opts.question_counts.map((n) => (
-                <button key={n} className={!customCount && prefs.count === n ? "on" : ""} onClick={() => { setCustomCount(false); setPrefs((p) => ({ ...p, count: n })); }}>{n}</button>
-              ))}
-              <button className={customCount ? "on" : ""} onClick={() => setCustomCount(true)}>Custom</button>
-            </div>
-            {customCount && (
-              <input className="input" type="number" min={1} max={opts.max_questions} value={prefs.count} style={{ width: 100 }}
-                onChange={(e) => setPrefs((p) => ({ ...p, count: Math.max(1, Math.min(opts.max_questions, Number(e.target.value) || 1)) }))}
-                aria-label="Custom number of questions" />
-            )}
-          </div>
+      <section className="card next-steps">
+        <h3 style={{ marginTop: 0 }}>What happens next</h3>
+        <div className="next-grid">
+          <div><Layers size={18} /> <span><strong>Material Breakdown:</strong> an overview, subtopics with key concepts and formulas, and a map of how they connect.</span></div>
+          <div><BookOpenCheck size={18} /> <span><strong>Study guide</strong> for the subtopics you pick.</span></div>
+          <div><ClipboardList size={18} /> <span><strong>Quiz</strong> with the question types and difficulty you choose.</span></div>
+          <div><ListVideo size={18} /> <span><strong>Video playlist</strong> of YouTube explanations for each subtopic.</span></div>
         </div>
       </section>
 
       <div className="row" style={{ marginTop: 22, justifyContent: "flex-end" }}>
-        {uploading && <span className="muted small">Waiting for uploads to finish…</span>}
-        <button className="btn primary lg" disabled={!canStart} onClick={start}>
-          {starting ? <span className="spinner" /> : <Sparkles size={18} />} Start session
+        {processing.length > 0 && <span className="muted small">Links still being read are included once they're ready.</span>}
+        <button className="btn primary lg" disabled={!canCreate} onClick={create}>
+          {creating ? <span className="spinner" /> : <Sparkles size={18} />} Create study set
         </button>
       </div>
-      {!material.trim() && readyFiles.length === 0 && (
+      {!prompt.trim() && usable.length === 0 && (
         <div className="muted small" style={{ textAlign: "right", marginTop: 8 }}>
-          Describe the material or add a document to begin.
+          Describe what to cover or add a file or link to begin.
         </div>
       )}
     </div>

@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config, db, desktop, llm_client
 from .errors import AppError
-from .routers import guide, sessions, settings
+from .routers import guide, sessions, sets, settings, videos
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +21,9 @@ ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
 def create_app() -> FastAPI:
     db.init_db()
     llm_client.cleanup_tmp()  # remove CLI work folders left behind by a crash
+    from .services import sources
+
+    sources.cleanup_unattached()  # setup-screen files and links that never became a Study Set
     app = FastAPI(title=config.APP_NAME, version=config.VERSION, docs_url="/api/docs", openapi_url="/api/openapi.json")
 
     @app.middleware("http")
@@ -54,6 +57,8 @@ def create_app() -> FastAPI:
     app.include_router(settings.router)
     app.include_router(sessions.router)
     app.include_router(guide.router)
+    app.include_router(sets.router)
+    app.include_router(videos.router)
 
     @app.get("/api/_ping")
     def ping() -> dict:

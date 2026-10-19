@@ -281,12 +281,18 @@ def test_create_session_validation(client):
     assert client.post("/api/sessions", json={"types": ["multiple_choice"], "material": "x", "upload_ids": ["nope"]}).status_code == 410
 
 
-def test_delete_session_removes_files(client, fake_claude):
+def test_delete_session_keeps_set_files_until_set_is_deleted(client, fake_claude):
+    import os
+
     up = upload_text(client)
     s = create(client, upload_ids=[up["id"]])
     next_q(client, s["id"])
     path = db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"]
+    set_id = s["study_set_id"]
+    assert set_id
     assert client.delete(f"/api/sessions/{s['id']}").json() == {"ok": True}
-    import os
-    assert not os.path.exists(path)
     assert client.get(f"/api/sessions/{s['id']}").status_code == 404
+    assert os.path.exists(path)  # still one of the Study Set's sources
+    assert client.delete(f"/api/sets/{set_id}").json() == {"ok": True}
+    assert not os.path.exists(path)
+    assert client.get(f"/api/sets/{set_id}").status_code == 404

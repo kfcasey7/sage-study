@@ -86,6 +86,7 @@ export interface SessionView {
   progress: { served: number; answered: number; grading: number; generated: number; skipped_waiting: number };
   generating: boolean;
   editable: boolean;
+  study_set_id: string | null;
 }
 
 export interface SessionOptions {
@@ -190,6 +191,8 @@ export interface ResultQuestion {
   /** Reported as poorly made: shown, but not counted in any score. */
   reported: boolean;
   report_reason: string | null;
+  /** "Find video" was opened before answering (shown in the review; the grade is unchanged). */
+  used_video_help: boolean;
 }
 
 export interface AiSummary {
@@ -200,7 +203,7 @@ export interface AiSummary {
 export interface Results {
   session: {
     id: string; title: string; subject: string; created_at: string; completed_at: string | null; status: string;
-    config: SessionConfig; parent_session_id: string | null; docs_truncated: boolean;
+    config: SessionConfig; parent_session_id: string | null; docs_truncated: boolean; study_set_id: string | null;
   };
   mastery: { overall: MasteryBucket; subtopics: SubtopicMastery[]; types: TypeMastery[]; weak_subtopic_ids: string[] };
   questions: ResultQuestion[];
@@ -210,6 +213,7 @@ export interface Results {
   ai: AiSummary;
   session_seconds: number | null;
   study_guide_status: "generating" | "ready" | "failed" | null;
+  study_guide_id: string | null;
 }
 
 export interface ChartSpec {
@@ -244,6 +248,9 @@ export interface GuideSectionState {
 }
 
 export interface StudyGuide {
+  id?: string;
+  kind?: "weak_areas" | "subtopics";
+  meta?: GuideMeta;
   status: "generating" | "ready" | "failed" | "none";
   content: { generated_at: string; overall_score: number | null; sections: GuideSectionState[] } | null;
 }
@@ -285,3 +292,161 @@ export interface ChatView {
   mode: "unanswered" | "answered_hidden" | "revealed";
   messages: ChatMessage[];
 }
+
+// --- Study Sets ---------------------------------------------------------------------------
+
+export type SourceStatus = "processing" | "ready" | "failed";
+
+export interface SourceView {
+  id: string;
+  kind: "file" | "link";
+  /** pdf docx pptx text image | web web_pdf web_file youtube gdoc gslides gsheet */
+  source_type: string;
+  url: string | null;
+  title: string;
+  status: SourceStatus;
+  error: ApiErrorBody | null;
+  /** S1, S2... (only for sources in a set) */
+  label: string | null;
+  content_kind: "pdf" | "image" | "text" | null;
+  char_count: number | null;
+  size: number | null;
+  created_at: string;
+  duplicate?: boolean;
+  /** Part of the current breakdown (set view only). */
+  in_breakdown?: boolean;
+}
+
+export interface Formula { latex: string; description: string }
+
+export interface SetSubtopic {
+  id: string;
+  name: string;
+  summary: string;
+  key_concepts: string[];
+  formulas: Formula[];
+  difficulty: number | null;
+  source_ids: string[];
+  position: number;
+  mastery: { score: number | null; n: number; correct: number; partial: number; incorrect: number; weak: boolean } | null;
+  is_new: boolean;
+  is_updated: boolean;
+}
+
+export interface SetQuiz {
+  id: string;
+  title: string;
+  status: string;
+  score: number | null;
+  created_at: string;
+  completed_at: string | null;
+  parent_session_id: string | null;
+  answered: number;
+  count: number | null;
+  adaptive: boolean | null;
+  subtopics: string[];
+}
+
+export interface SetGuideRow {
+  id: string;
+  kind: "weak_areas" | "subtopics";
+  status: "generating" | "ready" | "failed";
+  created_at: string;
+  session_id: string | null;
+  subtopics: string[];
+}
+
+export interface SetPlaylistRow {
+  id: string;
+  status: "generating" | "ready" | "failed";
+  created_at: string;
+  videos: number;
+  watched: number;
+  subtopics: string[];
+}
+
+export interface StudySetView {
+  id: string;
+  title: string;
+  subject: string;
+  created_at: string;
+  updated_at: string;
+  breakdown: {
+    status: "none" | "legacy" | "generating" | "ready" | "failed";
+    error: ApiErrorBody | null;
+    version: number;
+    overview: string | null;
+    map_mermaid: string | null;
+    map_repaired: boolean;
+    coverage_notes: string[];
+    generated_at: string | null;
+    unreadable_sources: string[];
+    removed: string[];
+    running: boolean;
+  };
+  sources_changed: boolean;
+  subtopics: SetSubtopic[];
+  sources: SourceView[];
+  prompts: { id: string; text: string; version: number; created_at: string }[];
+  quizzes: SetQuiz[];
+  guides: SetGuideRow[];
+  playlists: SetPlaylistRow[];
+}
+
+export interface StudySetRow {
+  id: string;
+  title: string;
+  subject: string;
+  created_at: string;
+  updated_at: string;
+  breakdown_status: StudySetView["breakdown"]["status"];
+  sources: number;
+  subtopics: number;
+  quizzes: number;
+  completed: number;
+  in_progress: number;
+  last_score: number | null;
+  guides: number;
+  playlists: number;
+  last_activity: string;
+}
+
+export interface GuideMeta {
+  title: string;
+  subject: string;
+  date: string;
+  set_id: string | null;
+  session_id: string | null;
+  kind: "weak_areas" | "subtopics";
+}
+
+// --- Videos ---------------------------------------------------------------------------------
+
+export interface VideoInfo {
+  video_id: string;
+  title: string;
+  channel: string;
+  duration_s: number | null;
+  thumbnail: string;
+  reason: string;
+  url: string;
+}
+
+export interface PlaylistVideo extends VideoInfo { id: string; watched: boolean }
+
+export interface PlaylistView {
+  id: string;
+  set_id: string;
+  set_title: string;
+  status: "generating" | "ready" | "failed";
+  error: ApiErrorBody | null;
+  created_at: string;
+  groups: { subtopic_id: string; name: string; videos: PlaylistVideo[]; spares_left: number }[];
+  youtube_playlist_url: string | null;
+  busy: boolean;
+  mode: "api" | "websearch";
+}
+
+export interface QuestionVideos { videos: VideoInfo[]; used_before_answer: boolean }
+
+export interface YoutubeKeyStatus { set: boolean; last4: string | null; mode: "api" | "websearch" }

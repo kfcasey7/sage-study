@@ -7,6 +7,7 @@ read-only Read tool. Material longer than the per-call budget is split into chun
 most relevant to the request are sent."""
 from __future__ import annotations
 
+import hashlib
 import io
 import math
 import re
@@ -220,10 +221,30 @@ def save_upload(filename: str, data: bytes) -> dict[str, Any]:
         "size": len(data),
         "path": str(path),
         "char_count": char_count,
+        "sha256": hashlib.sha256(data).hexdigest(),
         "created_at": db.now(),
     }
     db.insert("uploads", row)
     return public_upload(row)
+
+
+def save_text_upload(title: str, text: str, source_type: str = "text") -> dict[str, Any]:
+    """Store text extracted from a link (web page, transcript, exported Google file) like an uploaded text file."""
+    if not text.strip():
+        raise AppError("unsupported_file", "No readable text was found.")
+    upload_id = db.new_id()
+    folder = config.UPLOAD_DIR / upload_id
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "extracted.txt"
+    path.write_text(text, encoding="utf-8")
+    data = text.encode("utf-8")
+    row = {
+        "id": upload_id, "filename": title[:200] or "Link", "kind": "text", "source_type": source_type,
+        "media_type": "text/plain", "size": len(data), "path": str(path), "char_count": len(text),
+        "sha256": hashlib.sha256(data).hexdigest(), "created_at": db.now(),
+    }
+    db.insert("uploads", row)
+    return row
 
 
 def public_upload(row: dict[str, Any]) -> dict[str, Any]:
@@ -239,7 +260,9 @@ def public_upload(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def delete_upload(upload_id: str) -> None:
-    linked = db.query_one("SELECT 1 FROM session_documents WHERE upload_id = ?", (upload_id,))
+    linked = db.query_one(
+        "SELECT 1 FROM session_documents WHERE upload_id = ? UNION ALL SELECT 1 FROM sources WHERE upload_id = ?",
+        (upload_id, upload_id))
     if linked:
         return  # still used by a saved session (needed for retests); keep the file
     row = db.query_one("SELECT path FROM uploads WHERE id = ?", (upload_id,))

@@ -4,7 +4,7 @@ import {
   Bar, BarChart, CartesianGrid, Cell, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from "recharts";
-import { AlertTriangle, BookOpenCheck, ChevronDown, Clock, Globe, MessageSquareWarning, PlusCircle, RefreshCw, Repeat, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpenCheck, ChevronDown, Clock, Globe, Layers, MessageSquareWarning, RefreshCw, Repeat, Sparkles, Video } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, ResultQuestion, Results as ResultsT } from "../lib/types";
@@ -34,6 +34,7 @@ function QuestionReview({ q, open = false, onReport }: { q: ResultQuestion; open
         </div>
         <div className="row" style={{ flexShrink: 0, gap: 6 }}>
           {q.reported && <span className="badge" title={q.report_reason ?? undefined}><MessageSquareWarning size={12} /> Reported · not counted</span>}
+          {q.used_video_help && <span className="badge warn" title="You opened Find video before answering. Your grade isn't affected."><Video size={12} /> Used help · video</span>}
           {q.confidently_wrong && <span className="badge incorrect" title="Answered with high confidence but scored below 50"><AlertTriangle size={12} /> Confidently wrong</span>}
           {q.uses_outside_knowledge && <span className="badge warn" title="Relied on knowledge beyond your material"><Globe size={12} /></span>}
           <VerdictBadge verdict={q.grade_status === "done" ? q.verdict : null} skipped={q.skipped} />
@@ -118,13 +119,16 @@ export default function Results() {
 
   return (
     <div className="page wide">
+      {data.session.study_set_id && (
+        <Link to={`/sets/${data.session.study_set_id}`} className="btn ghost sm" style={{ marginBottom: 12 }}><ArrowLeft size={14} /> Back to study set</Link>
+      )}
       <div className="page-header">
         <div>
           <h1>{data.session.title || "Results"}</h1>
           <p>{data.session.subject ? `${data.session.subject} · ` : ""}{formatDateTime(data.session.created_at)}{data.session.parent_session_id ? " · Retest" : ""}</p>
         </div>
         <div className="row">
-          <button className="btn" onClick={() => navigate("/")}><PlusCircle size={16} /> New session</button>
+          {data.session.study_set_id && <Link className="btn" to={`/sets/${data.session.study_set_id}`}><Layers size={16} /> Material Breakdown</Link>}
           <SessionMenu sessionId={id} />
         </div>
       </div>

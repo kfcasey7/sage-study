@@ -27,7 +27,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from .. import config, db
+from .. import config, db, migrations
 from ..errors import AppError
 from ..llm_client import structured_call
 from ..prompts.generate import generation_instruction
@@ -98,6 +98,7 @@ def create_session(
     settings: dict[str, Any],
     subtopics: list[dict[str, str]] | None = None,
     parent_session_id: str | None = None,
+    study_set_id: str | None = None,
 ) -> str:
     types, languages = _clean_options(types, difficulty, count, languages)
     if not material.strip() and not upload_ids:
@@ -136,6 +137,7 @@ def create_session(
         "status": "analyzing",
         "parent_session_id": parent_session_id,
         "current_difficulty": difficulty,
+        "study_set_id": study_set_id,
     })
     for pos, uid in enumerate(upload_ids):
         db.insert("session_documents", {"session_id": session_id, "upload_id": uid, "position": pos})
@@ -146,13 +148,19 @@ def create_session(
 
 
 def _store_subtopics(session_id: str, subtopics: list[dict[str, str]]) -> None:
+    """Store the quiz's subtopics. Each may name the Study Set subtopic it comes from (`set_subtopic_id`);
+    otherwise, in a session that belongs to a set, it is linked to the set subtopic with the same name."""
     rows = []
     for pos, s in enumerate(subtopics):
         row = {"id": db.new_id(), "session_id": session_id, "name": s["name"].strip(),
-               "description": s.get("description", "").strip(), "position": pos}
+               "description": s.get("description", "").strip(), "position": pos,
+               "set_subtopic_id": s.get("set_subtopic_id")}
         db.insert("subtopics", row)
         rows.append(row)
     session = S.get_session(session_id)
+    if session.get("study_set_id"):
+        with db.connect() as conn:
+            migrations.link_subtopics(conn, session_id, session["study_set_id"])
     cfg = session["config"]
     cfg["slots"] = plan_slots(cfg["count"], [r["id"] for r in rows], cfg["types"], seed=session_id)
     _assign_languages(cfg["slots"], cfg["languages"], seed=session_id)

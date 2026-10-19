@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowRight, BookOpen, CircleHelp, Flag, Globe, HelpCircle, MessageCircleQuestion, MessageSquareWarning, Send, SkipForward, Undo2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft, ArrowRight, BookOpen, CircleHelp, Flag, Globe, HelpCircle, MessageCircleQuestion, MessageSquareWarning, Send, SkipForward,
+  Undo2, Video,
+} from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { AnswerView, ApiErrorBody, Confidence, QuestionView, SessionView } from "../lib/types";
 import { ErrorBanner, Loading } from "../components/common";
 import { SessionMenu } from "../components/SessionMenu";
 import { QuestionChat } from "../components/QuestionChat";
+import { VideoPanel } from "../components/Videos";
 import { ReportQuestionDialog, type ReportResult } from "../components/ReportQuestionDialog";
 import { Markdown } from "../components/Markdown";
 import { AnswerInput, isAnswered, PROMPT_INSIDE_INPUT } from "../answers/AnswerInput";
@@ -31,6 +35,7 @@ export default function Quiz() {
   const [progress, setProgress] = useState({ answered: 0, served: 0, skipped_waiting: 0 });
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [videosOpen, setVideosOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState<Set<string>>(new Set());
   const pollRef = useRef<number | null>(null);
@@ -177,7 +182,10 @@ export default function Quiz() {
 
   const pct = total ? (progress.answered / total) * 100 : 0;
   return (
-    <div className={`page${chatOpen && phase === "question" ? " has-chat" : ""}`} ref={topRef}>
+    <div className={`page${(chatOpen || videosOpen) && phase === "question" ? " has-chat" : ""}`} ref={topRef}>
+      {session?.study_set_id && (
+        <Link to={`/sets/${session.study_set_id}`} className="btn ghost sm" style={{ marginBottom: 12 }}><ArrowLeft size={14} /> Back to study set</Link>
+      )}
       <div className="page-header">
         <div>
           <h1>{session?.title || "Study session"}</h1>
@@ -250,7 +258,11 @@ export default function Quiz() {
                 <MessageSquareWarning size={15} /> Report
               </button>
             )}
-            <button className="btn sm ghost" onClick={() => setChatOpen((o) => !o)} aria-pressed={chatOpen}
+            <button className="btn sm ghost" onClick={() => { setVideosOpen((o) => !o); setChatOpen(false); }} aria-pressed={videosOpen}
+              title="Find 1-3 YouTube videos on the concept behind this question">
+              <Video size={15} /> Find video
+            </button>
+            <button className="btn sm ghost" onClick={() => { setChatOpen((o) => !o); setVideosOpen(false); }} aria-pressed={chatOpen}
               title="Chat with Claude about this question">
               <MessageCircleQuestion size={15} /> Ask Claude
             </button>
@@ -319,6 +331,9 @@ export default function Quiz() {
       {chatOpen && phase === "question" && q && (
         <QuestionChat questionId={q.id} refreshKey={answer ? `${answer.revealed}-${answer.grade_status}` : "open"}
           onClose={() => setChatOpen(false)} />
+      )}
+      {videosOpen && phase === "question" && q && (
+        <VideoPanel questionId={q.id} answered={!!answer} onClose={() => setVideosOpen(false)} />
       )}
     </div>
   );

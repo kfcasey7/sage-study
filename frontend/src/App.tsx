@@ -11,6 +11,8 @@ import History from "./pages/History";
 const Quiz = lazy(() => import("./pages/Quiz"));
 const Results = lazy(() => import("./pages/Results"));
 const StudyGuide = lazy(() => import("./pages/StudyGuide"));
+const Breakdown = lazy(() => import("./pages/Breakdown"));
+const Playlist = lazy(() => import("./pages/Playlist"));
 
 function Shell() {
   const { settingsError, reloadSettings } = useApp();
@@ -29,6 +31,9 @@ function Shell() {
             <Route path="/quiz/:id" element={<Quiz />} />
             <Route path="/results/:id" element={<Results />} />
             <Route path="/guide/:id" element={<StudyGuide />} />
+            <Route path="/sets/:id" element={<Breakdown />} />
+            <Route path="/study-guides/:gid" element={<StudyGuide />} />
+            <Route path="/playlists/:id" element={<Playlist />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from .. import config, db, ingest
 from ..errors import AppError
 from ..schemas.questions import AnswerSubmission
-from ..services import chat, generation, grading, results
+from ..services import chat, generation, grading, results, study_sets
 from ..services import sessions as S
 
 router = APIRouter(prefix="/api", tags=["sessions"])
@@ -60,6 +60,7 @@ def session_view(session_id: str) -> dict[str, Any]:
         "progress": S.progress(session_id),
         "generating": generation.worker_running(session_id),
         "editable": s["status"] != "completed",
+        "study_set_id": s.get("study_set_id"),
     }
 
 
@@ -76,6 +77,7 @@ async def create_session(body: SessionIn) -> dict:
         languages=body.languages or [body.language or "Python"],
         settings=db.get_settings(),
     )
+    study_sets.adopt_session(session_id)  # older clients: the quiz gets its own Study Set
     generation.ensure_worker(session_id)
     return session_view(session_id)
 
@@ -88,21 +90,7 @@ def get_session(session_id: str) -> dict:
 @router.delete("/sessions/{session_id}")
 def delete_session(session_id: str) -> dict:
     S.get_session(session_id)
-    generation.stop_worker(session_id)
-    upload_ids = [r["upload_id"] for r in db.query("SELECT upload_id FROM session_documents WHERE session_id = ?", (session_id,))]
-    with db.connect() as conn:
-        conn.execute("DELETE FROM answers WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM questions WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM subtopics WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM study_guides WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM session_documents WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM ai_calls WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM question_chats WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM question_reports WHERE session_id = ?", (session_id,))
-        conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
-    for uid in upload_ids:
-        ingest.delete_upload(uid)  # only removes files no other session uses
-    S.forget_context(session_id)
+    S.delete_session(session_id)
     return {"ok": True}
 
 
@@ -231,6 +219,7 @@ async def retest(session_id: str, body: RetestIn | None = None) -> dict:
                   "model_smart": cfg.get("model_smart", config.DEFAULT_MODEL_SMART)},
         subtopics=[{"name": s["name"], "description": s["description"]} for s in weak],
         parent_session_id=session_id,
+        study_set_id=parent.get("study_set_id"),
     )
     title = parent["title"] or "Study session"
     S.update_session(new_id, title=f"Retest: {title}"[:120])

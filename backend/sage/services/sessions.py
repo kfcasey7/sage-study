@@ -106,3 +106,19 @@ def call_context(session: dict[str, Any]) -> CallContext:
 
 def forget_context(session_id: str) -> None:
     _material_cache.pop(session_id, None)
+
+
+def delete_session(session_id: str) -> None:
+    """Delete a quiz and everything made from it. Its Study Set (and the set's sources) stay."""
+    from . import generation
+
+    generation.stop_worker(session_id)
+    upload_ids = [r["upload_id"] for r in db.query("SELECT upload_id FROM session_documents WHERE session_id = ?", (session_id,))]
+    with db.connect() as conn:
+        for table in ("answers", "questions", "subtopics", "study_guides", "guides", "question_videos",
+                      "session_documents", "ai_calls", "question_chats", "question_reports"):
+            conn.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+    for uid in upload_ids:
+        ingest.delete_upload(uid)  # only removes files no other session or source uses
+    forget_context(session_id)

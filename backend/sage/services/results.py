@@ -15,9 +15,10 @@ def answered_items(session_id: str) -> list[dict[str, Any]]:
         "SELECT q.id, q.position, q.type, q.subtopic_id, q.difficulty, q.payload_json, q.display_json, "
         "a.response_json, a.confidence, a.skipped, a.grade_status, a.score, a.verdict, a.feedback, "
         "a.model_answer, a.misconception, a.details_json, a.grade_error, a.graded_by, "
-        "rp.reason AS report_reason, rp.note AS report_note "
+        "rp.reason AS report_reason, rp.note AS report_note, qv.before_answer AS video_before_answer "
         "FROM questions q JOIN answers a ON a.question_id = q.id "
         "LEFT JOIN question_reports rp ON rp.question_id = q.id "
+        "LEFT JOIN question_videos qv ON qv.question_id = q.id "
         "WHERE q.session_id = ? ORDER BY q.position",
         (session_id,),
     )
@@ -53,6 +54,8 @@ def answered_items(session_id: str) -> list[dict[str, Any]]:
             # Reported as poorly made: shown in the review, but left out of every score.
             "reported": r["report_reason"] is not None,
             "report_reason": config.REPORT_REASON_LABELS.get(r["report_reason"]) if r["report_reason"] else None,
+            # "Find video" was opened before answering. Shown in the review; the grade is unchanged.
+            "used_video_help": bool(r["video_before_answer"]),
         }
         item["confidently_wrong"] = is_confidently_wrong(item)
         items.append(item)
@@ -113,7 +116,7 @@ def results(session_id: str) -> dict[str, Any]:
     items = answered_items(session_id)
     subtopics = S.get_subtopics(session_id)
     mastery = compute_mastery(scored(items), subtopics)
-    guide = db.query_one("SELECT status FROM study_guides WHERE session_id = ?", (session_id,))
+    guide = db.query_one("SELECT id, status FROM guides WHERE session_id = ? AND kind = 'weak_areas'", (session_id,))
     return {
         "session": {
             "id": session["id"],
@@ -125,6 +128,7 @@ def results(session_id: str) -> dict[str, Any]:
             "config": {k: v for k, v in session["config"].items() if k != "slots"},
             "docs_truncated": session["config"].get("docs_truncated", False),
             "parent_session_id": session["parent_session_id"],
+            "study_set_id": session.get("study_set_id"),
         },
         "mastery": mastery,
         "questions": items,
@@ -134,6 +138,7 @@ def results(session_id: str) -> dict[str, Any]:
         "ai": ai_summary(session_id),
         "session_seconds": _seconds_between(session["created_at"], session["completed_at"]),
         "study_guide_status": guide["status"] if guide else None,
+        "study_guide_id": guide["id"] if guide else None,
     }
 
 
@@ -143,7 +148,7 @@ def history() -> list[dict[str, Any]]:
         "s.config_json, (SELECT COUNT(*) FROM answers a WHERE a.session_id = s.id) AS answered, "
         "(SELECT COUNT(*) FROM ai_calls c WHERE c.session_id = s.id) AS ai_calls, "
         "(SELECT SUM(duration_ms) FROM ai_calls c WHERE c.session_id = s.id) / 1000.0 AS ai_seconds, "
-        "(SELECT status FROM study_guides g WHERE g.session_id = s.id) AS guide_status "
+        "(SELECT status FROM guides g WHERE g.session_id = s.id AND g.kind = 'weak_areas') AS guide_status, s.study_set_id "
         "FROM sessions s ORDER BY s.created_at DESC"
     )
     out = []

@@ -119,11 +119,117 @@ CREATE TABLE IF NOT EXISTS question_reports (
     answered     INTEGER NOT NULL,       -- 1 = reported after answering (kept, not scored); 0 = replaced
     created_at   TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS study_sets (
+    id                    TEXT PRIMARY KEY,
+    title                 TEXT NOT NULL DEFAULT '',
+    subject               TEXT NOT NULL DEFAULT '',
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL,
+    breakdown_status      TEXT NOT NULL,      -- none | legacy (migrated, subtopics only) | generating | ready | failed
+    breakdown_json        TEXT,               -- {overview, map_mermaid, map_repaired, coverage_notes, generated_at}
+    breakdown_error_json  TEXT,
+    breakdown_version     INTEGER NOT NULL DEFAULT 0,   -- bumped by every (re)generation
+    breakdown_sources_key TEXT                -- ready source ids the breakdown was built from
+);
+CREATE TABLE IF NOT EXISTS set_prompts (
+    id         TEXT PRIMARY KEY,
+    set_id     TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    version    INTEGER NOT NULL,              -- breakdown version it was added for
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sources (
+    id          TEXT PRIMARY KEY,
+    set_id      TEXT,                         -- NULL while still on the setup screen
+    draft_id    TEXT,                         -- setup-screen group, for de-duplication before the set exists
+    kind        TEXT NOT NULL,                -- file | link
+    source_type TEXT NOT NULL,                -- pdf docx pptx text image | web web_pdf youtube gdoc gslides gsheet
+    url         TEXT,
+    title       TEXT NOT NULL DEFAULT '',
+    upload_id   TEXT,                         -- processed content (uploads row)
+    dedupe_key  TEXT NOT NULL,
+    status      TEXT NOT NULL,                -- processing | ready | failed
+    error_json  TEXT,
+    position    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS set_subtopics (
+    id                TEXT PRIMARY KEY,
+    set_id            TEXT NOT NULL,
+    name              TEXT NOT NULL,
+    summary           TEXT NOT NULL DEFAULT '',
+    key_concepts_json TEXT NOT NULL DEFAULT '[]',
+    formulas_json     TEXT NOT NULL DEFAULT '[]',
+    difficulty        INTEGER,
+    source_ids_json   TEXT NOT NULL DEFAULT '[]',
+    position          INTEGER NOT NULL,
+    status            TEXT NOT NULL,          -- active | removed (kept so old quiz results keep their names)
+    created_version   INTEGER NOT NULL,
+    updated_version   INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS guides (
+    id                TEXT PRIMARY KEY,
+    set_id            TEXT,
+    session_id        TEXT,                   -- weak-areas guides belong to a finished quiz
+    kind              TEXT NOT NULL,          -- weak_areas | subtopics
+    subtopic_ids_json TEXT NOT NULL DEFAULT '[]',
+    status            TEXT NOT NULL,          -- generating | ready | failed
+    content_json      TEXT,
+    error_json        TEXT,
+    created_at        TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playlists (
+    id                TEXT PRIMARY KEY,
+    set_id            TEXT NOT NULL,
+    subtopic_ids_json TEXT NOT NULL,
+    status            TEXT NOT NULL,          -- generating | ready | failed
+    error_json        TEXT,
+    spares_json       TEXT NOT NULL DEFAULT '{}',  -- {set_subtopic_id: [ranked, verified-later candidates]}
+    created_at        TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS playlist_items (
+    id              TEXT PRIMARY KEY,
+    playlist_id     TEXT NOT NULL,
+    set_subtopic_id TEXT NOT NULL,
+    video_id        TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    channel         TEXT NOT NULL DEFAULT '',
+    duration_s      INTEGER,
+    thumbnail       TEXT NOT NULL DEFAULT '',
+    reason          TEXT NOT NULL DEFAULT '',
+    watched         INTEGER NOT NULL DEFAULT 0,
+    position        INTEGER NOT NULL,
+    status          TEXT NOT NULL,            -- active | replaced
+    created_at      TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS question_videos (
+    question_id   TEXT PRIMARY KEY,
+    session_id    TEXT NOT NULL,
+    videos_json   TEXT NOT NULL,
+    before_answer INTEGER NOT NULL,           -- 1 = looked up before answering ("used help")
+    created_at    TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS yt_cache (
+    key        TEXT PRIMARY KEY,              -- search:<query> | video:<id>
+    json       TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS oembed_cache (
+    video_id   TEXT PRIMARY KEY,
+    ok         INTEGER NOT NULL,
+    json       TEXT,
+    checked_at TEXT NOT NULL
+);
 DROP TABLE IF EXISTS api_calls;          -- token/cost tracking from the API-key era
 CREATE INDEX IF NOT EXISTS idx_questions_session ON questions(session_id, status);
 CREATE INDEX IF NOT EXISTS idx_answers_session ON answers(session_id);
 CREATE INDEX IF NOT EXISTS idx_ai_calls_session ON ai_calls(session_id);
 CREATE INDEX IF NOT EXISTS idx_question_chats_question ON question_chats(question_id, id);
+CREATE INDEX IF NOT EXISTS idx_sources_set ON sources(set_id, position);
+CREATE INDEX IF NOT EXISTS idx_set_subtopics_set ON set_subtopics(set_id, position);
+CREATE INDEX IF NOT EXISTS idx_guides_set ON guides(set_id);
+CREATE INDEX IF NOT EXISTS idx_guides_session ON guides(session_id);
+CREATE INDEX IF NOT EXISTS idx_playlist_items ON playlist_items(playlist_id, position);
 """
 
 _init_lock = threading.Lock()
@@ -138,11 +244,47 @@ def new_id() -> str:
     return uuid.uuid4().hex[:16]
 
 
+def _add_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
+    if column not in {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
-    """Add columns introduced after a database was first created."""
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(questions)")}
-    if "deferred_count" not in cols:
-        conn.execute("ALTER TABLE questions ADD COLUMN deferred_count INTEGER NOT NULL DEFAULT 0")
+    """Add columns introduced after a database was first created, then run versioned data migrations."""
+    from . import migrations
+
+    _add_column(conn, "questions", "deferred_count", "INTEGER NOT NULL DEFAULT 0")
+    _add_column(conn, "sessions", "study_set_id", "TEXT")
+    _add_column(conn, "subtopics", "set_subtopic_id", "TEXT")
+    _add_column(conn, "uploads", "sha256", "TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_set ON sessions(study_set_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_subtopics_set ON subtopics(set_subtopic_id)")
+    migrations.run(conn)
+
+
+def _backup_before_migration() -> None:
+    """Copy the database aside before a data migration touches it (once per schema version)."""
+    from . import migrations
+
+    if not config.DB_PATH.exists():
+        return
+    conn = sqlite3.connect(config.DB_PATH)
+    try:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        has_sessions = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sessions'").fetchone() is not None
+        if version >= migrations.LATEST or not has_sessions:
+            return
+        backup = config.DB_PATH.with_name(f"{config.DB_PATH.name}.bak-v{migrations.LATEST}")
+        if backup.exists():
+            return
+        dst = sqlite3.connect(backup)
+        try:
+            conn.backup(dst)  # consistent copy, including pages still in the WAL file
+        finally:
+            dst.close()
+    finally:
+        conn.close()
 
 
 def init_db() -> None:
@@ -150,12 +292,17 @@ def init_db() -> None:
     with _init_lock:
         config.DATA_DIR.mkdir(parents=True, exist_ok=True)
         config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        _backup_before_migration()
         conn = sqlite3.connect(config.DB_PATH)
+        conn.row_factory = sqlite3.Row
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(SCHEMA)
             _migrate(conn)
             conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
         _initialized_path = str(config.DB_PATH)

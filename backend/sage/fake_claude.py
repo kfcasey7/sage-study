@@ -94,8 +94,20 @@ def cli_error(message: str, status: int | None = None) -> dict:
             "duration_ms": 300}
 
 
+# Real, public videos (so demo mode passes the oEmbed check); tests mock the HTTP layer.
+DEMO_VIDEO_IDS = ["NyOYW07-L5g", "p_A25qLUe4w", "Bz6vexpZItw", "mrSkqiwphzI", "mNnmcXUJQGE", "4i1MUWJoI0U"]
+TARGET_RE = re.compile(r'<target key="([^"]+)" title="([^"]*)"')
+SOURCE_LABEL_RE = re.compile(r"^- (S\d+): ", re.M)
+EXISTING_SUB_RE = re.compile(r'<subtopic ref="([^"]+)" name="([^"]+)">')
+
+
 def purpose_of(req) -> str:
     props = req.schema["properties"]
+    if "overview" in props:
+        return "breakdown"
+    if "targets" in props:
+        inner = props["targets"]["items"]["properties"]
+        return "video_queries" if "queries" in inner else "video_search" if "videos" in inner else "video_rank"
     if "questions" in props:
         return "generate"
     if "subtopics" in props:
@@ -116,6 +128,41 @@ def instruction_of(req) -> str:
 
 
 def default_response(purpose: str, params, demo: bool = False) -> dict:
+    if purpose == "breakdown":
+        prompt = instruction_of(params)
+        labels = SOURCE_LABEL_RE.findall(prompt)
+        existing = EXISTING_SUB_RE.findall(prompt)
+        demo_formula = [{"latex": "\\Delta U = Q - W", "description": "Change in internal energy equals heat added minus work done by the system."}]
+        subs = [{"ref": ref, "change": "unchanged", "name": name, "summary": f"Summary of {name}.",
+                 "key_concepts": ["concept one", "concept two"], "formulas": demo_formula if demo else [],
+                 "difficulty": 3, "sources": labels[:1]} for ref, name in existing]
+        if not subs:
+            subs = [{"ref": "", "change": "new", "name": n, "summary": f"What **{n}** covers.",
+                     "key_concepts": ["internal energy", "heat", "work"] if demo else ["a", "b"],
+                     "formulas": demo_formula if demo and i == 0 else [], "difficulty": 2 + i, "sources": labels[:1]}
+                    for i, n in enumerate(["Alpha", "Beta"])]
+        if existing and 'newest="true"' in prompt:
+            subs.append({"ref": "", "change": "new", "name": f"Added topic {len(existing) + 1}", "summary": "From the new prompt.",
+                         "key_concepts": ["new idea"], "formulas": [], "difficulty": 3, "sources": labels[-1:]})
+        nodes = "\n".join(f'    N{i}["{x["name"]}"]' for i, x in enumerate(subs))
+        edges = "\n".join(f"    N{i} --> N{i + 1}" for i in range(len(subs) - 1))
+        return {"title": "Test Set", "overview": "An overview of the material.", "subtopics": subs,
+                "map_mermaid": f"flowchart LR\n{nodes}\n{edges}", "coverage_notes": ["Chapter 9 isn't in the sources."] if demo else []}
+    if purpose == "video_queries":
+        return {"targets": [{"key": k, "queries": [f"{t} explained", f"{t} tutorial"]} for k, t in TARGET_RE.findall(instruction_of(params))]}
+    if purpose == "video_search":
+        targets = TARGET_RE.findall(instruction_of(params))
+        return {"targets": [{"key": k, "videos": [
+            {"url": f"https://www.youtube.com/watch?v={vid}", "title": f"Video about {t}", "reason": f"Explains {t} clearly."}
+            for vid in DEMO_VIDEO_IDS[i % 2:i % 2 + 4]]} for i, (k, t) in enumerate(targets)]}
+    if purpose == "video_rank":
+        out = []
+        for block in re.split(r"(?=<target key=)", instruction_of(params)):
+            m = TARGET_RE.match(block)
+            if m:
+                ids = re.findall(r"video_id=(\S+)", block)
+                out.append({"key": m.group(1), "picks": [{"video_id": v, "reason": "A clear explanation."} for v in ids[:5]]})
+        return {"targets": out}
     if purpose == "topic_map":
         return {"title": "Test Session", "summary": "About tests.", "subtopics": [
             {"name": "Alpha", "description": "First"}, {"name": "Beta", "description": "Second"},
@@ -176,8 +223,16 @@ class FakeClaude:
             import asyncio
             await asyncio.sleep(1.5)  # make loading states visible
         if isinstance(result, dict) and result.get("type") == "result":
-            return parse_result(0, json.dumps(result), "")
-        return cli_result(result)
+            data = parse_result(0, json.dumps(result), "")
+            if "_search_results" in result:
+                data["_search_results"] = result["_search_results"]
+        else:
+            data = cli_result(result)
+        if "WebSearch" in getattr(req, "tools", []) and "_search_results" not in data:
+            # What the WebSearch tool "returned": every URL in the default response.
+            data["_search_results"] = ["Links: " + json.dumps([{"title": "", "url": f"https://www.youtube.com/watch?v={v}"}
+                                                               for v in DEMO_VIDEO_IDS])]
+        return data
 
     def purposes(self) -> list[str]:
         return [c["purpose"] for c in self.calls]

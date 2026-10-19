@@ -21,6 +21,9 @@ STATUS_FOR_CODE = {
     "missing_file": 410,
     "bad_request": 400,
     "conflict": 409,
+    "no_videos": 404,
+    "youtube_quota": 429,
+    "youtube_key_invalid": 400,
 }
 
 
@@ -39,7 +42,7 @@ class AppError(Exception):
     @property
     def retryable(self) -> bool:
         return self.code in {"usage_limit", "overloaded", "server_error", "network", "timeout", "truncated",
-                             "invalid_output", "cli_error", "not_logged_in", "cli_missing"}
+                             "invalid_output", "cli_error", "not_logged_in", "cli_missing", "no_videos"}
 
     def to_dict(self) -> dict[str, Any]:
         return {

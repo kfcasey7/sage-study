@@ -5,7 +5,14 @@ write a study guide covering whatever you got wrong. Every AI request goes throu
 installed on your computer, using your **Claude subscription login** (e.g. Pro). There is no API key and no API
 billing; requests count toward your plan's normal usage limits.
 
-- Upload notes, slides, and textbook chapters (PDF, Word, PowerPoint, text/Markdown, or photos of notes).
+- Organize material into **Study Sets**: prompts plus sources. Sources can be files (PDF, Word, PowerPoint,
+  text/Markdown, or photos of notes) and **links**: web pages, PDF links, YouTube videos (by transcript), and
+  public Google Docs/Slides/Sheets.
+- A **Material Breakdown** for every set: an overview, subtopics with key concepts, KaTeX formulas, difficulty
+  and the sources they came from, a Mermaid map of how they relate, and notes on anything you asked for that
+  the sources don't cover. Pick subtopics, then generate a study guide, start a quiz, or build a **YouTube
+  playlist**. Append prompts and sources at any time; the breakdown merges them and keeps your quiz results
+  attached.
 - 13 question types: multiple choice, select-all, true/false, fill-in-the-blank, matching, ordering, short and
   long response, free response, math with step-by-step LaTeX work, code (Monaco editor), error analysis, and
   applied engineering scenarios.
@@ -16,7 +23,10 @@ billing; requests count toward your plan's normal usage limits.
   you were wrong with high confidence.
 - A personalized study guide for weak areas, with explanations, KaTeX formulas, Mermaid diagrams or charts,
   worked examples, your specific mistakes, and practice questions. Export it to PDF or Markdown.
-- History with mastery trends per subject, and one-click retests of your weak areas.
+- **Find video** on any quiz question: 1–3 YouTube explanations in a side panel (noted as "used help" on your
+  results; grades don't change). Every video comes from a real search and is checked to exist; Claude never
+  writes a video link.
+- History of your Study Sets with mastery trends per subject, and one-click retests of your weak areas.
 
 Everything runs locally. The app is a single-user program that only talks to Claude through the `claude`
 command on this machine.
@@ -84,13 +94,27 @@ How the app calls it: for every request it runs `claude -p` with JSON output and
 
 ## Using it
 
-1. **New session:** describe what to cover, drop in your files, pick question types, difficulty, and count.
-2. Sage maps the material into subtopics, then writes questions in small batches while you work.
-3. Answer one question at a time. Feedback appears after each answer or at the end (set in **Settings**).
-4. **Results** shows your score by subtopic and question type, every missed question, and how many AI calls
-   the session made and how long it took.
-5. **Generate study guide** covers only your weak areas. **Retest weak areas** starts a new session
-   limited to those subtopics.
+1. **New study set:** describe what to cover and add files and links. Each source shows *Processing*,
+   *Ready*, or *Couldn't read* with the reason (pages behind a login or paywall, videos without captions,
+   Google files that aren't shared publicly). Remove it or upload the file instead; one bad link never stops
+   the set. Identical files and links are only added once.
+2. The **Material Breakdown** appears in a minute or two. Every subtopic is selected; untick any you want to
+   leave out. If you've taken quizzes on the set, each subtopic shows your mastery.
+3. Choose an action for the selected subtopics:
+   - **Generate study guide**: explanations, formulas, diagrams or charts, worked examples, and practice,
+     using your quiz history on each subtopic when you have one.
+   - **Start quiz**: pick question types, difficulty, adaptive mode, and the number of questions. Answer one
+     question at a time; feedback appears after each answer or at the end (set in **Settings**). **Results**
+     works as before, with the weak-areas study guide and **Retest weak areas**, and links back to the set.
+   - **Build video playlist**: 1–3 videos per subtopic with a line on why each is relevant. Mark them
+     watched, replace one, find more, open them all as a YouTube playlist, or copy the links. Videos play in
+     the app (or in your browser).
+4. **Append to this study set** adds a prompt ("also cover chapter 7") and/or more files and links, then
+   **Update breakdown** merges them in. Existing subtopics keep their place and your results; new ones are
+   marked **New** and changed ones **Updated**. Every prompt stays in the prompt history.
+
+Study Sets from before this version were created automatically, one per earlier session (retests join
+their original's set). They show their old subtopics right away; **Build full breakdown** adds the rest.
 
 Only one copy of the app runs at a time. Launching it again brings the existing window to the front.
 
@@ -105,7 +129,8 @@ Sage uses the CLI's model aliases, and you can change them in **Settings**:
 | Task | Default |
 |---|---|
 | Mapping subtopics, writing questions | **Haiku** (fast, light on usage limits) |
-| Grading written, math, and code answers; study guides; diagram fixes | **Sonnet** |
+| Grading written, math, and code answers; Material Breakdowns; study guides; diagram fixes | **Sonnet** |
+| YouTube search queries and choosing videos | **Haiku** |
 
 Objective questions (multiple choice, true/false, select-all, matching, ordering, and exactly matching
 fill-in-the-blanks) are graded on your computer with no AI call. The results screen shows how many AI calls
@@ -143,6 +168,17 @@ Every prompt sent to Claude lives in `backend/sage/prompts/`:
 | `grade.py` | Rubric grading, with per-type notes for math, code, and error analysis |
 | `study_guide.py` | Study guide sections, plus Mermaid diagram repair |
 
+**Links** are read by the app itself, not by Claude: the main text of web pages (trafilatura, with math kept
+as LaTeX), YouTube transcripts (youtube-transcript-api), Google export URLs, and linked PDFs or Office files.
+Only public `http(s)` addresses are fetched.
+
+**YouTube.** Without a key, Sage finds videos with one Claude Code call that may use only the WebSearch tool,
+limited to youtube.com. The app reads the actual search results and drops any video that wasn't in them.
+With a free **YouTube Data API key** (Settings → YouTube videos; kept in Windows Credential Manager), the
+app searches with `search.list` and `videos.list` instead (lengths, channels, and view counts; results cached
+for a week), and Claude only ranks the returned candidates by id. Either way, every video is checked with
+YouTube's oEmbed endpoint before it's shown.
+
 ## Development
 
 ```bash
@@ -159,8 +195,10 @@ SAGE_FAKE_CLAUDE=1 ../.venv/Scripts/python -m sage.dev
 # Frontend with hot reload (proxies /api to the backend above)
 cd frontend && npm run dev
 
-# Live end-to-end check through the real CLI (3 questions + study guide; uses some of your plan's usage)
-.venv/Scripts/python scripts/e2e_live.py --url http://127.0.0.1:<port>   # port: see instance.json in the data folder
+# Live end-to-end checks through the real CLI (use some of your plan's usage; port: see instance.json)
+.venv/Scripts/python scripts/e2e_live.py --url http://127.0.0.1:<port>   # 3 questions + study guide
+.venv/Scripts/python scripts/e2e_sets.py --url http://127.0.0.1:<port>   # Study Set: PDF + links, breakdown,
+                                                                         # append, guide, playlist, quiz
 ```
 
 On macOS/Linux use `.venv/bin/python` instead of `.venv/Scripts/python`.
@@ -173,11 +211,14 @@ backend/sage/
   main.py             desktop entry: single instance, server thread, pywebview window
   llm_client.py       the only AI entry point: runs `claude -p`, schema-validated JSON, retries, errors
   ingest.py           uploads: PDF/DOCX/PPTX text extraction, images, chunking long material
+  migrations.py       versioned data migrations (v1: Study Sets), with a backup first
+  secrets.py          the YouTube API key in the OS credential store (keyring)
   prompts/            every prompt (see above)
   schemas/            JSON schemas + Pydantic validation for questions, grades, topic map, study guide
-  services/           generation, grading (local + Claude), mastery, results, study guide, export
+  services/           generation, grading (local + Claude), mastery, results, study guide, export,
+                      study_sets, sources + linkfetch (links), breakdown (+ merge), youtube
 frontend/src/
-  pages/              New session, Quiz, Results, Study guide, History, Settings
+  pages/              New study set, Breakdown, Quiz, Results, Study guide, Playlist, History, Settings
   answers/            one input component per question type (+ Monaco code editor)
   components/         Markdown/KaTeX, Mermaid, charts, shared UI
 scripts/              setup, icons, shortcut, sample PDF, live E2E
@@ -195,8 +236,9 @@ Set `SAGE_DATA_DIR` to use a different folder. If the app won't start, check `sa
   then validates it again with Pydantic, which also checks things a JSON schema can't (answer indices in
   range, the `{{blank}}` count matching the answers, and so on). It retries up to twice with the
   validator's error message.
-- **Turn limits.** The installed CLI has no max-turns flag. Calls have no tools at all, or only `Read` on a
-  few files, so there's nothing to loop on, and every call has a hard timeout.
+- **Turn limits.** The installed CLI has no max-turns flag. Calls have no tools at all, only `Read` on a
+  few files, or (video search without an API key) only `WebSearch` with no files, so there's little to loop
+  on, and every call has a hard timeout.
 - **Errors** are mapped to clear messages: Claude Code missing, not logged in, usage limit reached,
   timeout, refusal, and unusable output.
 - **Security.** The backend listens only on 127.0.0.1. It rejects foreign `Host` headers (DNS rebinding) and

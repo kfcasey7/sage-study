@@ -6,7 +6,9 @@ Every call:
     never fall back to API-key billing;
   * disables MCP servers, user/project settings (hooks, permissions), slash commands, and every built-in
     tool. Calls that include images or scanned PDFs get only the Read tool, confined (--restricted) to a
-    temp folder holding copies of those files;
+    temp folder holding copies of those files. Video searches without a YouTube API key get only the
+    WebSearch tool (and no files); their tool results are captured so the app can check that every
+    returned link really came from the search;
   * asks for JSON matching a schema (--json-schema), validates it with Pydantic, and retries with the
     validation error up to VALIDATION_RETRIES times;
   * has a timeout and maps failures to clear error codes (cli_missing, not_logged_in, usage_limit,
@@ -66,6 +68,7 @@ class CliRequest:
     files: list[tuple[str, Path]] = field(default_factory=list)  # (name in work folder, source path)
     timeout: float = 300
     system: str = SYSTEM_PROMPT
+    tools: list[str] = field(default_factory=list)  # extra built-in tools (only "WebSearch" is used)
 
 
 # --- Environment & discovery --------------------------------------------------------------
@@ -124,14 +127,20 @@ def cli_missing_error() -> AppError:
     )
 
 
+ALLOWED_EXTRA_TOOLS = {"WebSearch"}
+
+
 def build_args(cli: str, req: CliRequest) -> list[str]:
-    return [
+    extra = [t for t in req.tools if t in ALLOWED_EXTRA_TOOLS]
+    tools = (["Read"] if req.files else []) + extra
+    args = [
         cli, "-p",
-        "--output-format", "json",
+        # Calls with WebSearch stream every event so the search results themselves can be inspected.
+        *(["--output-format", "stream-json", "--verbose"] if extra else ["--output-format", "json"]),
         "--model", req.model,
         "--system-prompt", req.system,
         "--json-schema", json.dumps(req.schema, separators=(",", ":")),
-        "--tools", "Read" if req.files else "",
+        "--tools", ",".join(tools),
         "--restricted",                    # no shell/code tools; file tools confined to the work folder
         "--permission-prompts", "none",    # anything that would need approval is denied
         "--strict-mcp-config",             # ignore the user's MCP servers
@@ -139,6 +148,34 @@ def build_args(cli: str, req: CliRequest) -> list[str]:
         "--disable-slash-commands",
         "--no-session-persistence",
     ]
+    if extra:
+        args += ["--allowedTools", ",".join(extra)]  # WebSearch needs approval, and nobody is there to give it
+    return args
+
+
+def tool_results(stdout: str, tool: str) -> list[str]:
+    """Text of every result returned by `tool` in a stream-json transcript."""
+    names: dict[str, str] = {}
+    out: list[str] = []
+    for line in stdout.splitlines():
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(ev, dict) or ev.get("type") not in ("assistant", "user"):
+            continue
+        for block in (ev.get("message") or {}).get("content") or []:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "tool_use":
+                names[block.get("id", "")] = block.get("name", "")
+            elif block.get("type") == "tool_result" and names.get(block.get("tool_use_id", "")) == tool \
+                    and not block.get("is_error"):
+                content = block.get("content")
+                if isinstance(content, list):
+                    content = "\n".join(c.get("text", "") for c in content if isinstance(c, dict))
+                out.append(str(content or ""))
+    return out
 
 
 # --- Error classification ---------------------------------------------------------------------
@@ -247,7 +284,10 @@ async def run_cli(req: CliRequest) -> dict[str, Any]:
             shutil.copyfile(src, work / name)
         async with _sem():
             code, out, err = await _invoke(build_args(cli, req), req.prompt, work, req.timeout)
-        return parse_result(code, out, err)
+        data = parse_result(code, out, err)
+        if "WebSearch" in req.tools:
+            data["_search_results"] = tool_results(out, "WebSearch")
+        return data
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -305,8 +345,35 @@ async def structured_call(
 ) -> T:
     """Run one schema-constrained request through the CLI and validate the result. On validation
     failure, retry with the validator's message appended (up to VALIDATION_RETRIES retries)."""
-    model = ctx.model_smart if config.TASK_TIER.get(purpose) == "smart" else ctx.model_fast
     base_prompt, files, _ = build_prompt(ctx, instruction, focus, doc_budget)
+    return await _run_validated(ctx, purpose, base_prompt, files, schema, lambda obj, _data: validate(obj), attempts)
+
+
+async def search_call(
+    ctx: CallContext,
+    *,
+    purpose: str,
+    instruction: str,
+    schema: dict[str, Any],
+    validate: Callable[[dict[str, Any], list[str]], T],
+    system: str,
+    attempts: int | None = None,
+) -> T:
+    """A request that may only use the CLI's WebSearch tool (no course material, no files). `validate`
+    receives the JSON result and the text of every search result, so it can reject anything that
+    didn't come from the search."""
+    prompt = instruction.strip() + "\n\nRespond with ONLY a JSON object that matches the provided JSON schema. No prose before or after it."
+    return await _run_validated(ctx, purpose, prompt, [], schema,
+                                lambda obj, data: validate(obj, data.get("_search_results") or []),
+                                attempts, tools=["WebSearch"], system=system)
+
+
+async def _run_validated(
+    ctx: CallContext, purpose: str, base_prompt: str, files: list[tuple[str, Path]], schema: dict[str, Any],
+    validate: Callable[[dict[str, Any], dict[str, Any]], T], attempts: int | None,
+    tools: list[str] | None = None, system: str = SYSTEM_PROMPT,
+) -> T:
+    model = ctx.model_smart if config.TASK_TIER.get(purpose) == "smart" else ctx.model_fast
     timeout = config.TASK_TIMEOUT.get(purpose, 300)
     total = attempts or (1 + config.VALIDATION_RETRIES)
     note = ""
@@ -314,13 +381,14 @@ async def structured_call(
     for attempt in range(total):
         t0 = time.monotonic()
         try:
-            data = await run_cli(CliRequest(model=model, prompt=base_prompt + note, schema=schema, files=files, timeout=timeout))
+            data = await run_cli(CliRequest(model=model, prompt=base_prompt + note, schema=schema, files=files,
+                                            timeout=timeout, system=system, tools=list(tools or [])))
         except AppError as e:
             record_call(ctx.session_id, purpose, model, int((time.monotonic() - t0) * 1000), False, e.code)
             raise
         ms = int(data.get("duration_ms") or (time.monotonic() - t0) * 1000)
         try:
-            result = validate(extract_json(data))
+            result = validate(extract_json(data), data)
         except (ValidationError, ValueError) as e:
             record_call(ctx.session_id, purpose, model, ms, False, "invalid_output")
             log.warning("invalid %s output (attempt %d/%d): %s", purpose, attempt + 1, total, str(e)[:500])

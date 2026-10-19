@@ -45,9 +45,14 @@ TASK_TIER = {
     "study_guide": "smart",
     "diagram_repair": "smart",
     "chat": "smart",
+    "breakdown": "smart",
+    "video_queries": "fast",
+    "video_search": "fast",
+    "video_rank": "fast",
 }
 # Seconds before a CLI call is killed.
-TASK_TIMEOUT = {"topic_map": 240, "generate": 300, "grade": 180, "study_guide": 420, "diagram_repair": 120, "chat": 180}
+TASK_TIMEOUT = {"topic_map": 240, "generate": 300, "grade": 180, "study_guide": 420, "diagram_repair": 120, "chat": 180,
+                "breakdown": 480, "video_queries": 120, "video_search": 240, "video_rank": 120}
 MAX_CONCURRENT_CALLS = 2  # be gentle with subscription usage limits
 VALIDATION_RETRIES = 2
 
@@ -129,6 +134,31 @@ SUPPORTED_EXTENSIONS = {
     ".jpg": "image",
     ".jpeg": "image",
 }
+
+# --- Links -------------------------------------------------------------------
+LINK_TIMEOUT = 20            # seconds per HTTP request
+LINK_MAX_REDIRECTS = 5
+LINK_MIN_TEXT_CHARS = 300    # less readable text than this means a login wall, paywall, or JavaScript-only page
+# An honest app user agent with a URL: Wikipedia and others refuse anonymous or fake-browser agents.
+LINK_USER_AGENT = "SageStudy/1.0 (personal desktop study app; +http://127.0.0.1) python-httpx"
+BROWSER_USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/130.0.0.0 Safari/537.36")
+MAX_LINKS_PER_REQUEST = 10
+UNATTACHED_SOURCE_DAYS = 1   # sources added on the setup screen but never used are removed after this
+
+# --- Breakdown ---------------------------------------------------------------
+BREAKDOWN_MIN_SUBTOPICS = 2
+BREAKDOWN_MAX_SUBTOPICS = 15
+
+# --- YouTube -------------------------------------------------------------------
+KEYRING_SERVICE = APP_ID
+KEYRING_YOUTUBE = "youtube_api_key"
+YOUTUBE_CACHE_DAYS = 7
+OEMBED_CACHE_HOURS = 24
+YOUTUBE_RESULTS_PER_QUERY = 10
+VIDEOS_PER_SUBTOPIC = 3      # most videos picked per subtopic (1-3)
+VIDEOS_PER_QUESTION = 3
+QUERIES_PER_TARGET = 2
 
 DEFAULT_SETTINGS = {
     "model_fast": DEFAULT_MODEL_FAST,

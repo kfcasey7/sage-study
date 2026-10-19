@@ -4,6 +4,7 @@ import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, Settings as SettingsT } from "../lib/types";
 import { ErrorBanner, Loading } from "../components/common";
+import { YoutubeKeyCard } from "../components/YoutubeKeyCard";
 
 function StatusRow({ ok, label, detail }: { ok: boolean; label: string; detail?: string | null }) {
   return (
@@ -130,6 +131,8 @@ export default function Settings() {
           </div>
         </div>
       </section>
+
+      <YoutubeKeyCard />
 
       <p className="muted small" style={{ marginTop: 20 }}>
         {settings.app.name} {settings.app.version} · Data is stored locally in <code>{settings.app.data_dir}</code>

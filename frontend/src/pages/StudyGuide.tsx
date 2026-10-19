@@ -1,36 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import katex from "katex";
 import {
   AlertTriangle, ArrowLeft, BookOpen, FileDown, FileText, FolderOpen, Lightbulb, ListChecks, PenLine, Repeat, Shapes, Sigma, Target,
 } from "lucide-react";
-import { api, asApiError } from "../lib/api";
+import { api, asApiError, guideBase } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, GuideSectionState, StudyGuide as Guide, StudySection } from "../lib/types";
-import { ErrorBanner, formatDate, Loading } from "../components/common";
+import { ErrorBanner, formatDate, Loading, scoreColor } from "../components/common";
+import { Formula } from "../components/Formula";
 import { Markdown } from "../components/Markdown";
 import { MarkdownInline } from "../components/MarkdownInline";
 import { MermaidDiagram } from "../components/MermaidDiagram";
 import { ChartView } from "../components/ChartView";
 import { SessionMenu } from "../components/SessionMenu";
 
-function Formula({ latex }: { latex: string }) {
-  const html = katex.renderToString(latex.replace(/^\$+|\$+$/g, ""), { displayMode: true, throwOnError: false, strict: "ignore" });
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
-}
-
-function Section({ s, state, sessionId, onSectionChange }: {
-  s: StudySection; state: GuideSectionState; sessionId: string; onSectionChange: (sec: StudySection) => void;
+function Section({ s, state, base, weakAreas, onSectionChange }: {
+  s: StudySection; state: GuideSectionState; base: string; weakAreas: boolean; onSectionChange: (sec: StudySection) => void;
 }) {
   const [repairing, setRepairing] = useState(false);
   const onDiagramError = useCallback((message: string) => {
     if (s.diagram.repaired) return;
     setRepairing(true);
-    api.repairDiagram(sessionId, state.subtopic_id, message)
+    api.repairDiagram(base, state.subtopic_id, message)
       .then(onSectionChange)
       .catch(() => { /* keep showing the source fallback */ })
       .finally(() => setRepairing(false));
-  }, [s.diagram.repaired, sessionId, state.subtopic_id, onSectionChange]);
+  }, [s.diagram.repaired, base, state.subtopic_id, onSectionChange]);
 
   const hasDiagram = s.diagram.include && s.diagram.mermaid.trim();
   const hasChart = s.chart.include && s.chart.series.some((x) => x.points.length);
@@ -40,7 +35,9 @@ function Section({ s, state, sessionId, onSectionChange }: {
         <h2>
           <Target size={20} color="var(--primary)" /> {s.title}
           <span className="spacer" />
-          {state.score != null && <span className="badge incorrect">Your score: {Math.round(state.score)}%</span>}
+          {state.score != null && (weakAreas
+            ? <span className="badge incorrect">Your score: {Math.round(state.score)}%</span>
+            : <span className="badge" style={{ color: scoreColor(state.score), borderColor: scoreColor(state.score) }}>Quiz score: {Math.round(state.score)}%</span>)}
           {state.weak_reasons.includes("confidently_wrong") && <span className="badge warn">Confidently wrong</span>}
         </h2>
 
@@ -119,12 +116,14 @@ function Section({ s, state, sessionId, onSectionChange }: {
   );
 }
 
+/** /guide/:id is a finished quiz's weak-areas guide (by session id); /study-guides/:gid is any guide by id,
+ *  e.g. one generated from a Study Set's Material Breakdown. */
 export default function StudyGuide() {
-  const { id = "" } = useParams();
+  const { id = "", gid } = useParams();
+  const base = gid ? guideBase({ guideId: gid }) : guideBase({ sessionId: id });
   const navigate = useNavigate();
   const { toast, bumpHistory } = useApp();
   const [guide, setGuide] = useState<Guide | null>(null);
-  const [title, setTitle] = useState("");
   const [error, setError] = useState<ApiErrorBody | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -134,21 +133,20 @@ export default function StudyGuide() {
   const poll = useCallback(async () => {
     if (pollRef.current) window.clearTimeout(pollRef.current);
     try {
-      const g = await api.guide(id);
+      const g = await api.guide(base);
       setGuide(g);
       if (g.status === "generating") pollRef.current = window.setTimeout(poll, 2000);
       else bumpHistory();
     } catch (e) {
       setError(asApiError(e).toBody());
     }
-  }, [id, bumpHistory]);
+  }, [base, bumpHistory]);
 
   useEffect(() => {
-    api.results(id).then((r) => setTitle(r.session.title)).catch(() => { /* title is cosmetic */ });
     (async () => {
       try {
-        const g = await api.guide(id);
-        if (g.status === "none") {
+        const g = await api.guide(base);
+        if (g.status === "none" && !gid) {
           setGuide(await api.startGuide(id));
           pollRef.current = window.setTimeout(poll, 2000);
         } else {
@@ -160,7 +158,7 @@ export default function StudyGuide() {
       }
     })();
     return () => { if (pollRef.current) window.clearTimeout(pollRef.current); };
-  }, [id, poll]);
+  }, [id, gid, base, poll]);
 
   const updateSection = useCallback((subtopicId: string, section: StudySection) => {
     setGuide((g) => g && g.content ? {
@@ -170,7 +168,7 @@ export default function StudyGuide() {
 
   async function retrySection(subtopicId: string) {
     try {
-      setGuide(await api.retryGuideSection(id, subtopicId));
+      setGuide(await api.retryGuideSection(base, subtopicId));
       pollRef.current = window.setTimeout(poll, 2000);
     } catch (e) { setError(asApiError(e).toBody()); }
   }
@@ -178,7 +176,7 @@ export default function StudyGuide() {
   async function exportMd() {
     setBusy("md"); setSaved(null);
     try {
-      const r = await api.exportMarkdown(id);
+      const r = await api.exportMarkdown(base);
       if (r.path) { setSaved(r.path); toast("Study guide saved as Markdown.", "success"); }
     } catch (e) { setError(asApiError(e).toBody()); } finally { setBusy(null); }
   }
@@ -191,7 +189,7 @@ export default function StudyGuide() {
       const clone = contentRef.current.cloneNode(true) as HTMLElement;
       clone.querySelectorAll("details").forEach((d) => d.setAttribute("open", ""));
       clone.querySelectorAll(".no-print").forEach((n) => n.remove());
-      const r = await api.exportPdf(id, `<h1>Study Guide: ${title}</h1>${clone.innerHTML}`, head);
+      const r = await api.exportPdf(base, `<h1>Study Guide: ${title}</h1>${clone.innerHTML}`, head);
       if (r.fallback === "print") { toast(r.message ?? "Opening the print dialog…"); window.print(); }
       else if (r.path) { setSaved(r.path); toast("Study guide saved as PDF.", "success"); }
     } catch (e) { setError(asApiError(e).toBody()); } finally { setBusy(null); }
@@ -206,15 +204,27 @@ export default function StudyGuide() {
     } catch (e) { setError(asApiError(e).toBody()); setBusy(null); }
   }
 
+  const meta = guide?.meta;
+  const weakAreas = !gid;
+  const title = meta?.title ?? "";
+  const back = weakAreas
+    ? <Link to={`/results/${id}`} className="btn ghost sm no-print" style={{ marginBottom: 12 }}><ArrowLeft size={14} /> Back to results</Link>
+    : <Link to={meta?.set_id ? `/sets/${meta.set_id}` : "/history"} className="btn ghost sm no-print" style={{ marginBottom: 12 }}>
+        <ArrowLeft size={14} /> Back to {meta?.title || "study set"}
+      </Link>;
+
   if (error && !guide) {
     return (
       <div className="page">
-        <Link to={`/results/${id}`} className="btn ghost sm" style={{ marginBottom: 12 }}><ArrowLeft size={14} /> Back to results</Link>
+        {back}
         <ErrorBanner error={error} onRetry={() => { setError(null); void poll(); }} />
       </div>
     );
   }
-  if (!guide || !guide.content) return <Loading message="Building your study guide…" sub="Writing explanations, examples, and practice for your weak areas." />;
+  if (!guide || !guide.content) {
+    return <Loading message="Building your study guide…"
+      sub={weakAreas ? "Writing explanations, examples, and practice for your weak areas." : "Writing explanations, examples, and practice for the subtopics you picked."} />;
+  }
 
   const sections = guide.content.sections;
   const ready = sections.filter((s) => s.status === "ready").length;
@@ -222,17 +232,19 @@ export default function StudyGuide() {
 
   return (
     <div className="page">
-      <Link to={`/results/${id}`} className="btn ghost sm no-print" style={{ marginBottom: 12 }}><ArrowLeft size={14} /> Back to results</Link>
+      {back}
       <div className="page-header">
         <div>
           <h1>Study guide</h1>
-          <p>{title}{guide.content.generated_at ? ` · ${formatDate(guide.content.generated_at)}` : ""} · {sections.length} focus area{sections.length === 1 ? "" : "s"}</p>
+          <p>{title}{guide.content.generated_at ? ` · ${formatDate(guide.content.generated_at)}` : ""} · {sections.length} {weakAreas ? "focus area" : "subtopic"}{sections.length === 1 ? "" : "s"}</p>
         </div>
         <div className="row no-print">
           <button className="btn sm" onClick={exportMd} disabled={generating || !ready || !!busy}>{busy === "md" ? <span className="spinner" /> : <FileText size={15} />} Markdown</button>
           <button className="btn sm" onClick={exportPdf} disabled={generating || !ready || !!busy}>{busy === "pdf" ? <span className="spinner" /> : <FileDown size={15} />} PDF</button>
-          <button className="btn sm primary" onClick={retest} disabled={!!busy}>{busy === "retest" ? <span className="spinner" /> : <Repeat size={15} />} Retest weak areas</button>
-          <SessionMenu sessionId={id} />
+          {weakAreas && <>
+            <button className="btn sm primary" onClick={retest} disabled={!!busy}>{busy === "retest" ? <span className="spinner" /> : <Repeat size={15} />} Retest weak areas</button>
+            <SessionMenu sessionId={id} />
+          </>}
         </div>
       </div>
 
@@ -253,12 +265,13 @@ export default function StudyGuide() {
       {generating && (
         <div className="banner info no-print">
           <span className="spinner" style={{ marginTop: 3 }} />
-          <div className="banner-body">Writing your guide: {ready} of {sections.length} sections ready. Each section is tailored to the questions you missed.</div>
+          <div className="banner-body">Writing your guide: {ready} of {sections.length} sections ready.{weakAreas
+            ? " Each section is tailored to the questions you missed." : " Sections use your quiz results on a subtopic when you have them."}</div>
         </div>
       )}
 
       <div className="card no-print" style={{ marginBottom: 22 }}>
-        <div className="row"><Lightbulb size={18} color="var(--primary)" /><strong>Focus areas</strong></div>
+        <div className="row"><Lightbulb size={18} color="var(--primary)" /><strong>{weakAreas ? "Focus areas" : "Subtopics"}</strong></div>
         <div className="chips" style={{ marginTop: 10 }}>
           {sections.map((s) => (
             <a key={s.subtopic_id} className="badge primary" href={`#sec-${s.subtopic_id}`}
@@ -273,7 +286,7 @@ export default function StudyGuide() {
         {sections.map((st) => (
           <div key={st.subtopic_id} id={`sec-${st.subtopic_id}`}>
             {st.status === "ready" && st.section && (
-              <Section s={st.section} state={st} sessionId={id} onSectionChange={(sec) => updateSection(st.subtopic_id, sec)} />
+              <Section s={st.section} state={st} base={base} weakAreas={weakAreas} onSectionChange={(sec) => updateSection(st.subtopic_id, sec)} />
             )}
             {st.status === "pending" && (
               <div className="card guide-section no-print">

@@ -14,7 +14,6 @@ from typing import Any
 
 from ..desktop import NO_WINDOW
 from ..errors import AppError
-from . import sessions as S
 
 # token -> html, served once at /api/print/{token} for the headless browser
 print_jobs: dict[str, str] = {}
@@ -25,18 +24,21 @@ def safe_filename(text: str, fallback: str = "study-guide") -> str:
     return (name[:60] or fallback).lower()
 
 
-def guide_markdown(session_id: str, guide: dict[str, Any]) -> tuple[str, str]:
-    session = S.get_session(session_id)
-    title = session["title"] or "Study session"
+def guide_markdown(info: dict[str, Any], guide: dict[str, Any]) -> tuple[str, str]:
+    """info: study_guide.meta(guide) (title, subject, date, kind)."""
+    title = info["title"]
     content = guide["content"]
     lines = [f"# Study Guide: {title}", ""]
     meta = []
-    if session["subject"]:
-        meta.append(f"**Subject:** {session['subject']}")
-    meta.append(f"**Session date:** {session['created_at'][:10]}")
+    if info["subject"]:
+        meta.append(f"**Subject:** {info['subject']}")
+    weak = info["kind"] == "weak_areas"
+    meta.append(f"**{'Session' if weak else 'Created'}:** {info['date'][:10]}")
     if content.get("overall_score") is not None:
-        meta.append(f"**Overall score:** {content['overall_score']:.0f}%")
-    lines += ["  \n".join(meta), "", "This guide covers the subtopics where you scored below 70% or answered incorrectly with high confidence.", ""]
+        meta.append(f"**{'Overall score' if weak else 'Quiz score on these subtopics'}:** {content['overall_score']:.0f}%")
+    intro = ("This guide covers the subtopics where you scored below 70% or answered incorrectly with high confidence."
+             if weak else "This guide covers the subtopics you chose from the Material Breakdown.")
+    lines += ["  \n".join(meta), "", intro, ""]
 
     for sec in content["sections"]:
         s = sec.get("section")
@@ -152,7 +154,6 @@ def new_print_job(html: str) -> str:
     return token
 
 
-def default_pdf_name(session_id: str) -> str:
-    session = S.get_session(session_id)
-    return f"{safe_filename(session['title'] or 'study')}-study-guide.pdf"
+def default_pdf_name(info: dict[str, Any]) -> str:
+    return f"{safe_filename(info['title'] or 'study')}-study-guide.pdf"
 
