@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Info, RefreshCw, Terminal, Timer, WifiOff } from "lucide-react";
+import { useApp } from "../lib/app-context";
 import type { ApiErrorBody } from "../lib/types";
 
 export function LeafMark({ size = 46, className = "" }: { size?: number; className?: string }) {
@@ -57,6 +58,25 @@ const ERROR_TITLES: Record<string, string> = {
   not_found: "Not found",
 };
 
+/** What to do about the failures people are most likely to run into. */
+function ErrorHelp({ code }: { code: string }) {
+  const { settings } = useApp();
+  const docs = settings?.app.install_docs_url ?? "https://code.claude.com/docs/en/setup";
+  if (code === "cli_missing") {
+    return <div className="small" style={{ marginTop: 6 }}>Claude Code is a separate program from Anthropic. <a href={docs} target="_blank" rel="noreferrer">See how to install it</a>, then try again.</div>;
+  }
+  if (code === "not_logged_in") {
+    return <div className="small" style={{ marginTop: 6 }}>Open a terminal (PowerShell on Windows, Terminal on a Mac), type <code>claude</code>, and follow the steps to sign in. Then try again.</div>;
+  }
+  if (code === "usage_limit") {
+    return <div className="small" style={{ marginTop: 6 }}>This is your own Claude plan's limit, not a problem with the app. You haven't lost anything, and you weren't charged.</div>;
+  }
+  if (code === "network") {
+    return <div className="small" style={{ marginTop: 6 }}>Check your Wi-Fi or internet connection. Everything you've done so far is saved.</div>;
+  }
+  return null;
+}
+
 export function ErrorBanner({ error, onRetry, compact }: { error: ApiErrorBody | null | undefined; onRetry?: () => void; compact?: boolean }) {
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -77,6 +97,7 @@ export function ErrorBanner({ error, onRetry, compact }: { error: ApiErrorBody |
       <div className="banner-body">
         <div className="banner-title">{ERROR_TITLES[error.code] ?? "Something went wrong"}</div>
         <div>{error.message}</div>
+        <ErrorHelp code={error.code} />
         {!compact && error.detail && <div className="banner-detail">Details: {error.detail}</div>}
         {(setupIssue || canRetry) && (
           <div className="row" style={{ marginTop: 10 }}>

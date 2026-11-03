@@ -1,21 +1,67 @@
 """FastAPI application: API routers, error handling, local-only guard, and the built frontend."""
 from __future__ import annotations
 
+import html
 import logging
+import secrets as stdlib_secrets
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, desktop, llm_client
+from . import config, db, desktop, llm_client, runtime
 from .errors import AppError
-from .routers import guide, sessions, sets, settings, videos
+from .routers import diagnostics, guide, sessions, sets, settings, updates, videos
 
 log = logging.getLogger(__name__)
 
 CLIENT_HEADER = "x-sage-client"
-ALLOWED_HOSTS = {"127.0.0.1", "localhost"}
+TOKEN_HEADER = "x-sage-token"
+SIGNED_OUT_PAGE = (f"<!doctype html><title>{config.APP_NAME}</title><body style='font-family:system-ui;margin:3rem'>"
+                   f"<h2>Please open {config.APP_NAME} from its shortcut</h2>"
+                   "<p>This address only works from the app's own window, for your privacy.</p>")
+
+
+def _forbidden(message: str, status: int = 403) -> JSONResponse:
+    return JSONResponse({"error": {"code": "forbidden", "message": message}}, status_code=status)
+
+
+def _token_ok(candidate: str | None) -> bool:
+    return bool(candidate) and stdlib_secrets.compare_digest(candidate.encode(), runtime.token.encode())
+
+
+def _guard(request: Request) -> JSONResponse | HTMLResponse | None:
+    """Only this launch's own window may talk to the server.
+
+      * Host: exactly 127.0.0.1:<port>, which stops DNS rebinding.
+      * Origin: a browser's cross-site request is refused outright.
+      * Token: other programs and web pages don't have this launch's secret. The launch URL swaps it for an
+        HttpOnly, SameSite=Strict cookie, so it also covers images, downloads, and page loads.
+      * Custom header on writes: a second, independent check against cross-site requests."""
+    expected_host = f"127.0.0.1:{runtime.port}"
+    host = (request.headers.get("host") or "").strip().lower()
+    if runtime.auth_required:
+        if host != expected_host:
+            return _forbidden("Forbidden host.")
+    elif host.rsplit(":", 1)[0].strip("[]") not in ("127.0.0.1", "localhost"):
+        return _forbidden("Forbidden host.")
+
+    origin = request.headers.get("origin")
+    if runtime.auth_required and origin is not None and origin.lower() != f"http://{expected_host}":
+        return _forbidden("Forbidden origin.")
+
+    path = request.url.path
+    if runtime.auth_required and path != "/launch":
+        if not (_token_ok(request.cookies.get(runtime.cookie_name())) or _token_ok(request.headers.get(TOKEN_HEADER))):
+            if path.startswith("/api/"):
+                return _forbidden("Open the app from its shortcut.", status=401)
+            return HTMLResponse(SIGNED_OUT_PAGE, status_code=401)
+
+    if request.method not in ("GET", "HEAD", "OPTIONS") and path.startswith("/api/"):
+        if request.headers.get(CLIENT_HEADER) != "1":
+            return _forbidden("Missing client header.")
+    return None
 
 
 def create_app() -> FastAPI:
@@ -24,18 +70,14 @@ def create_app() -> FastAPI:
     from .services import sources
 
     sources.cleanup_unattached()  # setup-screen files and links that never became a Study Set
-    app = FastAPI(title=config.APP_NAME, version=config.VERSION, docs_url="/api/docs", openapi_url="/api/openapi.json")
+    docs = {"docs_url": None, "redoc_url": None, "openapi_url": None} if runtime.auth_required         else {"docs_url": "/api/docs", "openapi_url": "/api/openapi.json"}
+    app = FastAPI(title=config.APP_NAME, version=config.VERSION, **docs)
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
-        # Reject DNS-rebinding requests (wrong Host) and cross-site writes from web pages: browsers
-        # can't attach a custom header cross-origin without a CORS preflight, which we never allow.
-        host = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]")
-        if host not in ALLOWED_HOSTS:
-            return JSONResponse({"error": {"code": "forbidden", "message": "Forbidden host."}}, status_code=403)
-        if request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api/"):
-            if request.headers.get(CLIENT_HEADER) != "1":
-                return JSONResponse({"error": {"code": "forbidden", "message": "Missing client header."}}, status_code=403)
+        refused = _guard(request)
+        if refused is not None:
+            return refused
         return await call_next(request)
 
     @app.exception_handler(AppError)
@@ -59,6 +101,16 @@ def create_app() -> FastAPI:
     app.include_router(guide.router)
     app.include_router(sets.router)
     app.include_router(videos.router)
+    app.include_router(diagnostics.router)
+    app.include_router(updates.router)
+
+    @app.get("/launch", include_in_schema=False)
+    def launch(token: str = ""):
+        if not _token_ok(token):
+            return HTMLResponse(SIGNED_OUT_PAGE, status_code=401)
+        response = RedirectResponse("/", status_code=303)  # the token leaves the address bar right away
+        response.set_cookie(runtime.cookie_name(), runtime.token, httponly=True, samesite="strict", path="/")
+        return response
 
     @app.get("/api/_ping")
     def ping() -> dict:
@@ -66,7 +118,17 @@ def create_app() -> FastAPI:
 
     @app.post("/api/_focus")
     def focus() -> dict:
-        return {"focused": desktop.focus()}
+        return {"focused": desktop.focus(), "mode": runtime.window_mode}
+
+    @app.post("/api/_heartbeat")
+    def heartbeat() -> dict:
+        desktop.heartbeat()
+        return {"ok": True}
+
+    @app.post("/api/_quit")
+    def quit_app() -> dict:
+        desktop.request_quit()
+        return {"ok": True}
 
     dist = config.FRONTEND_DIST
     if (dist / "index.html").exists():
@@ -77,10 +139,13 @@ def create_app() -> FastAPI:
             candidate = (dist / path).resolve()
             if path and candidate.is_file() and dist.resolve() in candidate.parents:
                 return FileResponse(candidate)
-            return FileResponse(dist / "index.html", headers={"Cache-Control": "no-store"})
+            # The saved theme goes straight into the page, so the first paint is already in the right colors.
+            theme = html.escape(str(db.get_settings().get("theme") or "light"), quote=True)
+            page = (dist / "index.html").read_text(encoding="utf-8").replace("__SAGE_THEME__", theme)
+            return HTMLResponse(page, headers={"Cache-Control": "no-store"})
     else:
         @app.get("/", include_in_schema=False)
         def no_frontend():
-            return JSONResponse({"message": "Frontend not built. Run: cd frontend && npm run build"})
+            return JSONResponse({"message": "The built UI is missing. Run: python scripts/build_frontend.py"})
 
     return app

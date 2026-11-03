@@ -1,0 +1,1 @@
+import{j as e}from"./index-FOnpRLea.js";import{k as s}from"./Markdown-ByJV1HI3.js";function l({latex:o,inline:r=!1}){const t=s.renderToString(o.replace(/^\$+|\$+$/g,""),{displayMode:!r,throwOnError:!1,strict:"ignore"});return r?e.jsx("span",{dangerouslySetInnerHTML:{__html:t}}):e.jsx("div",{dangerouslySetInnerHTML:{__html:t}})}export{l as F};

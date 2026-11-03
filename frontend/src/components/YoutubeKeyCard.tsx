@@ -7,7 +7,7 @@ import { ErrorBanner } from "./common";
 
 /** Optional YouTube Data API key, kept in the system credential store. Without one, videos are found with
  *  Claude's web search. */
-export function YoutubeKeyCard() {
+export function YoutubeKeyCard({ optionalNote = false }: { optionalNote?: boolean }) {
   const { toast } = useApp();
   const [status, setStatus] = useState<YoutubeKeyStatus | null>(null);
   const [draft, setDraft] = useState("");
@@ -37,7 +37,8 @@ export function YoutubeKeyCard() {
 
   return (
     <section className="card">
-      <h2><KeyRound size={18} style={{ verticalAlign: -3, marginRight: 8 }} />YouTube videos</h2>
+      <h2><KeyRound size={18} style={{ verticalAlign: -3, marginRight: 8 }} />YouTube videos{optionalNote && <span className="badge" style={{ marginLeft: 8 }}>Optional</span>}</h2>
+      {optionalNote && <p className="muted small">You can skip this: video playlists work without a key.</p>}
       <p className="muted small" style={{ marginTop: 0 }}>
         Video playlists and "Find video" search YouTube for explanations. With a free <strong>YouTube Data API</strong> key,
         searches are faster and show each video's length and view count. Without one, Sage uses Claude's web search

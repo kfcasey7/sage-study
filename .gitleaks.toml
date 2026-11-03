@@ -1,0 +1,13 @@
+# Secret scanning for CI. Uses gitleaks' built-in rules, plus an exception for values that are fake on purpose.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake keys the tests and the old API-key code used; none has ever been a real credential"
+regexTarget = "match"
+regexes = [
+    '''sk-ant-test-key-123456''',
+    '''sk-ant-demo-mode-0000''',
+    '''sk-ant-secret''',
+    '''AIza(BAD|GOOD|CANARY)[A-Za-z0-9]*''',
+]

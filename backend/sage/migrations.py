@@ -4,18 +4,21 @@ the same functions for sessions created through the older /api/sessions endpoint
 
 v1: Study Sets. Every session without a set gets one (a retest joins its parent's set), with the
 session's documents as file sources, its prompt as the first prompt, and its subtopics as the set's
-subtopics. Weak-areas study guides move from `study_guides` to `guides`."""
+subtopics. Weak-areas study guides move from `study_guides` to `guides`.
+
+v2: upload paths become relative to the data folder, so the folder can be moved or renamed."""
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-LATEST = 1
+LATEST = 2
 
 
 def _now() -> str:
@@ -154,6 +157,16 @@ def _v1(conn: sqlite3.Connection) -> None:
     _move_study_guides(conn)
 
 
+_UPLOAD_TAIL = re.compile(r"(?:^|[\\/])(uploads[\\/][^\\/]+[\\/][^\\/]+)$")
+
+
+def _v2(conn: sqlite3.Connection) -> None:
+    for u in conn.execute("SELECT id, path FROM uploads").fetchall():
+        m = _UPLOAD_TAIL.search(u["path"])
+        if m:  # anything else stays as it was: it still resolves, and nothing is ever discarded
+            conn.execute("UPDATE uploads SET path = ? WHERE id = ?", (m.group(1).replace("\\", "/"), u["id"]))
+
+
 def run(conn: sqlite3.Connection) -> None:
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version >= LATEST:
@@ -162,4 +175,6 @@ def run(conn: sqlite3.Connection) -> None:
         conn.execute("BEGIN")
     if version < 1:
         _v1(conn)
+    if version < 2:
+        _v2(conn)
     conn.execute(f"PRAGMA user_version = {LATEST}")

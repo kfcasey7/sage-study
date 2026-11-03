@@ -219,7 +219,7 @@ def save_upload(filename: str, data: bytes) -> dict[str, Any]:
         "source_type": kind,
         "media_type": media_type,
         "size": len(data),
-        "path": str(path),
+        "path": config.stored_path(path),
         "char_count": char_count,
         "sha256": hashlib.sha256(data).hexdigest(),
         "created_at": db.now(),
@@ -240,7 +240,7 @@ def save_text_upload(title: str, text: str, source_type: str = "text") -> dict[s
     data = text.encode("utf-8")
     row = {
         "id": upload_id, "filename": title[:200] or "Link", "kind": "text", "source_type": source_type,
-        "media_type": "text/plain", "size": len(data), "path": str(path), "char_count": len(text),
+        "media_type": "text/plain", "size": len(data), "path": config.stored_path(path), "char_count": len(text),
         "sha256": hashlib.sha256(data).hexdigest(), "created_at": db.now(),
     }
     db.insert("uploads", row)
@@ -267,7 +267,7 @@ def delete_upload(upload_id: str) -> None:
         return  # still used by a saved session (needed for retests); keep the file
     row = db.query_one("SELECT path FROM uploads WHERE id = ?", (upload_id,))
     if row:
-        shutil.rmtree(Path(row["path"]).parent, ignore_errors=True)
+        shutil.rmtree(config.data_path(row["path"]).parent, ignore_errors=True)
         db.execute("DELETE FROM uploads WHERE id = ?", (upload_id,))
 
 
@@ -287,7 +287,7 @@ class Material:
 def load_material(uploads: list[dict[str, Any]]) -> Material:
     m = Material()
     for u in uploads:
-        path = Path(u["path"])
+        path = config.data_path(u["path"])
         if not path.exists():
             raise AppError("missing_file", f"The stored copy of '{u['filename']}' is missing. Start a new session and upload it again.")
         if u["kind"] == "text":

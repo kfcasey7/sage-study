@@ -1,8 +1,9 @@
-"""Desktop entry point: start the API server in a background thread and open the native window.
+"""Desktop entry point: start the API server in a background thread and open the native window, or the
+default browser when no native window can start.
 
-Only one instance runs at a time. The first instance holds an OS-level lock on `instance.lock`
-and records its port in `instance.json`; a second launch finds the lock taken, asks the running
-instance to bring its window to the front, and exits."""
+Only one instance runs at a time. The first instance holds an OS-level lock on `instance.lock` and records its
+port and launch token in `instance.json`; a second launch finds the lock taken, asks the running instance to
+bring its window to the front, and exits."""
 from __future__ import annotations
 
 import json
@@ -10,10 +11,12 @@ import logging
 import logging.handlers
 import os
 import socket
+import subprocess
 import sys
 import threading
 import time
 import urllib.request
+import webbrowser
 from pathlib import Path
 from typing import IO
 
@@ -88,51 +91,61 @@ class InstanceLock:
             self.handle = None
 
 
+def write_instance_file() -> None:
+    """Holds this launch's token, so only this user's account may read it."""
+    INSTANCE_FILE.unlink(missing_ok=True)
+    fd = os.open(INSTANCE_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump({"pid": os.getpid(), "port": runtime.port, "token": runtime.token}, f)
+
+
 def focus_existing(timeout: float = 15.0) -> bool:
     """Ask the running instance to show its window. Retries while it may still be starting."""
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             info = json.loads(INSTANCE_FILE.read_text())
-            port = info["port"]
+            port, token = info["port"], info["token"]
+            headers = {"x-sage-client": "1", "x-sage-token": token}
             if sys.platform == "win32":
                 # We were just launched by the user, so we hold foreground rights; pass them on.
                 import ctypes
 
                 ctypes.windll.user32.AllowSetForegroundWindow(int(info["pid"]))
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/_ping", timeout=1) as r:
+            ping = urllib.request.Request(f"http://127.0.0.1:{port}/api/_ping", headers=headers)
+            with urllib.request.urlopen(ping, timeout=1) as r:
                 if json.loads(r.read()).get("app") != config.APP_ID:
                     raise OSError("port is not Sage Study")
-            req = urllib.request.Request(
-                f"http://127.0.0.1:{port}/api/_focus", method="POST", data=b"", headers={"x-sage-client": "1"},
-            )
-            urllib.request.urlopen(req, timeout=2).close()
+            req = urllib.request.Request(f"http://127.0.0.1:{port}/api/_focus", method="POST", data=b"", headers=headers)
+            with urllib.request.urlopen(req, timeout=2) as r:
+                result = json.loads(r.read())
+            if not result.get("focused"):  # running in a browser tab: all we can do is open another one
+                webbrowser.open(f"http://127.0.0.1:{port}/launch?token={token}")
             return True
         except (OSError, ValueError, KeyError):
             time.sleep(0.4)
     return False
 
 
-def pick_port() -> int:
-    for port in (config.PREFERRED_PORT, 0):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("127.0.0.1", port))
-                return s.getsockname()[1]
-            except OSError:
-                continue
-    raise RuntimeError("no free port")
-
-
 # --- Server --------------------------------------------------------------------------------
 
-def start_server(port: int):
+def bind_free_port() -> socket.socket:
+    """127.0.0.1 only, on a port the OS picks. The socket stays open and goes straight to the server, so
+    nothing else can take the port in between."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.set_inheritable(True)
+    return sock
+
+
+def start_server(sock: socket.socket):
     import uvicorn
 
     from .app import create_app
 
-    server = uvicorn.Server(uvicorn.Config(create_app(), host="127.0.0.1", port=port, log_config=None, access_log=False))
-    thread = threading.Thread(target=server.run, name="sage-api", daemon=True)
+    runtime.port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(create_app(), log_config=None, access_log=False))
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, name="sage-api", daemon=True)
     thread.start()
     deadline = time.time() + 20
     while not server.started:
@@ -181,10 +194,62 @@ def show_fatal(message: str) -> None:
             return
         except Exception:  # noqa: BLE001
             pass
+    elif sys.platform == "darwin":
+        try:
+            quoted = message.replace("\\", "\\\\").replace('"', '\\"')
+            subprocess.run(["osascript", "-e", f'display alert "{config.APP_NAME}" message "{quoted}" as critical'], timeout=120, check=True)
+            return
+        except (OSError, subprocess.SubprocessError):
+            pass
     print(message, file=sys.stderr)
 
 
-def main() -> int:
+def run_window() -> None:
+    """Open the native window and block until it closes. Raises if this computer can't show one."""
+    if sys.platform not in ("win32", "darwin") and not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        raise RuntimeError("no graphical display was found")
+    import webview
+
+    set_windows_app_id()
+    width, height, x, y = initial_geometry(webview)
+    window = webview.create_window(
+        config.APP_NAME,
+        runtime.launch_url(),
+        width=width,
+        height=height,
+        x=x,
+        y=y,
+        min_size=(900, 600),
+        background_color="#F4F6F1",
+        text_select=True,
+    )
+    desktop.window = window
+    if sys.platform == "win32":
+        # A launch from a hidden process can start the window minimized; always open it normally.
+        window.events.shown += lambda: desktop.restore_win32()
+    # WinForms (Windows) only accepts .ico; GTK/Qt take a .png. A wrong format crashes the UI thread.
+    icon = config.ICON_DIR / ("icon.ico" if sys.platform == "win32" else "icon.png")
+    webview.start(
+        private_mode=False,  # keep the window's own state between runs
+        storage_path=str(config.DATA_DIR / "webview"),
+        icon=str(icon) if icon.exists() else None,
+    )
+
+
+def run_browser(reason: str) -> None:
+    """No native window: use the default browser, and keep running until the tab has been gone for a while."""
+    runtime.window_mode = "browser"
+    runtime.fallback_reason = reason
+    runtime.last_heartbeat = time.monotonic()
+    log.warning("opening in the browser: %s", reason)
+    if not webbrowser.open(runtime.launch_url()):
+        show_fatal(f"{config.APP_NAME} couldn't open a window or your browser.\n\nOpen this address in a browser to use it:\n"
+                   f"{runtime.launch_url()}")
+    while not runtime.stop_requested and time.monotonic() - runtime.last_heartbeat < config.BROWSER_IDLE_EXIT_SECONDS:
+        time.sleep(1)
+
+
+def main(force_browser: bool = False) -> int:
     setup_logging()
     lock = InstanceLock(config.LOCK_FILE)
     if not lock.acquire():
@@ -193,42 +258,22 @@ def main() -> int:
 
     server = None
     try:
-        import webview
-
-        port = pick_port()
-        runtime.port = port
-        server, thread = start_server(port)
-        INSTANCE_FILE.write_text(json.dumps({"pid": os.getpid(), "port": port}))
-        log.info("Sage Study %s running on %s", config.VERSION, runtime.server_url())
-
-        set_windows_app_id()
-        width, height, x, y = initial_geometry(webview)
-        window = webview.create_window(
-            config.APP_NAME,
-            runtime.server_url() + "/",
-            width=width,
-            height=height,
-            x=x,
-            y=y,
-            min_size=(900, 600),
-            background_color="#F4F6F1",
-            text_select=True,
-        )
-        desktop.window = window
-        if sys.platform == "win32":
-            # A launch from a hidden process can start the window minimized; always open it normally.
-            window.events.shown += lambda: desktop.restore_win32()
-        # WinForms (Windows) only accepts .ico; GTK/Qt take a .png. A wrong format crashes the UI thread.
-        icon = config.ICON_DIR / ("icon.ico" if sys.platform == "win32" else "icon.png")
-        webview.start(
-            private_mode=False,  # keep localStorage (theme, form preferences) between runs
-            storage_path=str(config.DATA_DIR / "webview"),
-            icon=str(icon) if icon.exists() else None,
-        )
+        server, thread = start_server(bind_free_port())
+        write_instance_file()
+        log.info("%s %s running on %s", config.APP_NAME, config.VERSION, runtime.server_url())
+        if force_browser:
+            run_browser("you asked for the browser version")
+        else:
+            try:
+                run_window()
+            except Exception as e:  # noqa: BLE001 - missing GTK/Qt/WebView2, or no display at all
+                log.exception("the native window couldn't start")
+                desktop.window = None
+                run_browser(str(e) or type(e).__name__)
         return 0
     except Exception as e:  # noqa: BLE001
         log.exception("fatal error")
-        show_fatal(f"Sage Study couldn't start:\n\n{e}\n\nLog file: {config.LOG_FILE}")
+        show_fatal(f"{config.APP_NAME} couldn't start:\n\n{getattr(e, 'message', e)}\n\nLog file: {config.LOG_FILE}")
         return 1
     finally:
         desktop.window = None
@@ -239,7 +284,3 @@ def main() -> int:
         except OSError:
             pass
         lock.release()
-
-
-if __name__ == "__main__":
-    sys.exit(main())

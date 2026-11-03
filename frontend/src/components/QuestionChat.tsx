@@ -18,7 +18,7 @@ const SUGGESTIONS: Record<ChatView["mode"], string[]> = {
   revealed: ["Why is that the right answer?", "Where did I go wrong?", "Give me a similar practice question"],
 };
 
-/** Floating "Ask Claude" chat about the question on screen. Each question keeps its own conversation. */
+/** Floating chat about the question on screen. Each question keeps its own conversation. */
 export function QuestionChat({ questionId, refreshKey, onClose }: { questionId: string; refreshKey: string; onClose: () => void }) {
   const [view, setView] = useState<ChatView | null>(null);
   const [draft, setDraft] = useState("");
@@ -81,11 +81,11 @@ export function QuestionChat({ questionId, refreshKey, onClose }: { questionId: 
   const empty = !!view && view.messages.length === 0 && !sending;
 
   return createPortal(
-    <section className="chat-panel" role="dialog" aria-label="Ask Claude about this question"
+    <section className="chat-panel" role="dialog" aria-label="Ask about this question"
       onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
       <header className="chat-head">
         <div style={{ minWidth: 0 }}>
-          <div className="chat-title"><MessageCircleQuestion size={17} /> Ask Claude</div>
+          <div className="chat-title"><MessageCircleQuestion size={17} /> Ask about this question</div>
           <div className="chat-note">{MODE_NOTE[mode]}</div>
         </div>
         <button className="icon-btn" onClick={onClose} aria-label="Close chat"><X size={18} /></button>

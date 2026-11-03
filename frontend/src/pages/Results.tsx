@@ -15,7 +15,7 @@ import { ReportQuestionDialog } from "../components/ReportQuestionDialog";
 
 const PURPOSE_LABELS: Record<string, string> = {
   topic_map: "Mapping subtopics", generate: "Writing questions", grade: "Grading answers",
-  study_guide: "Study guide", diagram_repair: "Fixing diagrams", chat: "Ask Claude chats",
+  study_guide: "Study guide", diagram_repair: "Fixing diagrams", chat: "Question chats",
 };
 
 const tooltipStyle = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)" };
@@ -286,7 +286,7 @@ export default function Results() {
         </table>
         <p className="muted small" style={{ marginTop: 10, marginBottom: 0 }}>
           Questions written with {data.session.config.model_fast ?? "haiku"}; grading and study guide with {data.session.config.model_smart ?? "sonnet"}.
-          Calls run through Claude Code on your subscription, so there's no per-call charge.
+          Calls run through Claude Code and count toward your own Claude plan's usage limits.
         </p>
       </details>
     </div>

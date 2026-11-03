@@ -9,21 +9,10 @@ import { ErrorBanner } from "./common";
 import { LanguagePicker } from "./LanguagePicker";
 
 export type QuizPrefs = QuizOptionsBody;
-const PREFS_KEY = "sage-new-session";
 const DEFAULT_PREFS: QuizPrefs = { types: ["multiple_choice", "true_false", "short_response"], difficulty: 3, adaptive: false, count: 10, languages: ["Python"] };
 
-export function loadQuizPrefs(): QuizPrefs {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
-    // Saved before several languages could be picked: { language: "C++" }
-    if (!Array.isArray(saved.languages) && typeof saved.language === "string") saved.languages = [saved.language];
-    delete saved.language;
-    return { ...DEFAULT_PREFS, ...saved };
-  } catch { return DEFAULT_PREFS; }
-}
-
-function saveQuizPrefs(p: QuizPrefs) {
-  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+export function quizPrefsFrom(saved: Partial<QuizPrefs> | null | undefined): QuizPrefs {
+  return { ...DEFAULT_PREFS, ...saved };
 }
 
 export const needsLanguage = (p: QuizPrefs) => p.types.includes("code") || p.types.includes("error_analysis");
@@ -107,11 +96,15 @@ export function QuizOptionsFields({ prefs, setPrefs }: { prefs: QuizPrefs; setPr
 /** "Start Quiz" from the Material Breakdown: quiz options for the selected subtopics. */
 export function StartQuizDialog({ setId, subtopics, onClose }: { setId: string; subtopics: SetSubtopic[]; onClose: () => void }) {
   const navigate = useNavigate();
-  const { settings, bumpHistory } = useApp();
-  const [prefs, setPrefsState] = useState<QuizPrefs>(loadQuizPrefs);
+  const { settings, setSettings, bumpHistory } = useApp();
+  const [prefs, setPrefsState] = useState<QuizPrefs>(() => quizPrefsFrom(settings?.settings.quiz_prefs));
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<ApiErrorBody | null>(null);
-  const setPrefs = (f: (p: QuizPrefs) => QuizPrefs) => setPrefsState((p) => { const n = f(p); saveQuizPrefs(n); return n; });
+  const setPrefs = (f: (p: QuizPrefs) => QuizPrefs) => {
+    const next = f(prefs);
+    setPrefsState(next);
+    api.updateSettings({ quiz_prefs: next }).then(setSettings).catch(() => { /* still applies to this quiz */ });
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

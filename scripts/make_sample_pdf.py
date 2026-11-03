@@ -1,6 +1,6 @@
 """Generate samples/thermo-first-law.pdf: a short set of course notes used for end-to-end testing.
 
-    python scripts/make_sample_pdf.py      (requires fpdf2, listed in requirements-dev.txt)
+    python scripts/make_sample_pdf.py      (requires fpdf2, in the dev dependency group)
 """
 from __future__ import annotations
 

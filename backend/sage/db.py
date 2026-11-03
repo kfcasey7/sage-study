@@ -263,14 +263,19 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
 
 def _backup_before_migration() -> None:
-    """Copy the database aside before a data migration touches it (once per schema version)."""
+    """Copy the database aside before a migration touches it (once per schema version), and refuse to open
+    a database written by a newer version of the app rather than risk damaging it."""
     from . import migrations
+    from .errors import AppError
 
     if not config.DB_PATH.exists():
         return
     conn = sqlite3.connect(config.DB_PATH)
     try:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if version > migrations.LATEST:
+            raise AppError("server_error", f"Your study data was saved by a newer version of {config.APP_NAME}. "
+                                           "Please update the app. Your data hasn't been changed.")
         has_sessions = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sessions'").fetchone() is not None
         if version >= migrations.LATEST or not has_sessions:
@@ -281,8 +286,12 @@ def _backup_before_migration() -> None:
         dst = sqlite3.connect(backup)
         try:
             conn.backup(dst)  # consistent copy, including pages still in the WAL file
+            good = dst.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         finally:
             dst.close()
+        if not good:
+            backup.unlink(missing_ok=True)
+            raise AppError("server_error", "Couldn't make a safe backup of your study data, so the update wasn't applied.")
     finally:
         conn.close()
 

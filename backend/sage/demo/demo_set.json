@@ -1,0 +1,695 @@
+{
+ "set_id": "1298e819c37c414d",
+ "files": {
+  "5b8fb9c1a580428d": "source-5b8fb9c1a580428d.txt"
+ },
+ "tables": {
+  "study_sets": [
+   {
+    "id": "1298e819c37c414d",
+    "title": "Sample: The First Law of Thermodynamics",
+    "subject": "Thermodynamics",
+    "created_at": "2026-11-03T02:05:12+00:00",
+    "updated_at": "2026-11-03T02:07:27+00:00",
+    "breakdown_status": "ready",
+    "breakdown_json": "{\"overview\": \"This set covers the **first law of thermodynamics** for closed systems. It starts with system types and state versus path functions, then states energy conservation, $\\\\Delta U = Q - W$, along with its sign convention. It applies the law to ideal-gas processes (isobaric, isochoric, isothermal, adiabatic) and to cycles. It ends with **enthalpy** and the specific heats $c_v$ and $c_p$, which link heat and temperature change to $\\\\Delta U$ and $\\\\Delta H$.\", \"map_mermaid\": \"flowchart TD\\nA[\\\"Systems and State vs Path Functions\\\"] -->|\\\"defines ΔU, Q, W roles\\\"| B[\\\"First Law for Closed Systems\\\"]\\nB -->|\\\"special case\\\"| C[\\\"First Law Applied to Cycles\\\"]\\nB -->|\\\"needs work expression\\\"| D[\\\"Boundary Work: Isobaric and Isochoric\\\"]\\nD -->|\\\"extends to\\\"| E[\\\"Isothermal Ideal-Gas Process\\\"]\\nD -->|\\\"extends to\\\"| F[\\\"Adiabatic Ideal-Gas Process\\\"]\\nD -->|\\\"constant P heat\\\"| G[\\\"Enthalpy and Constant-Pressure Heat\\\"]\\nG -->|\\\"ΔH = n cp ΔT\\\"| H[\\\"Ideal-Gas Specific Heats cv and cp\\\"]\\nH -->|\\\"gives γ\\\"| F\", \"map_repaired\": false, \"coverage_notes\": [\"Enthalpy is covered only briefly: the notes give the definition, Q_p = ΔH, and ideal-gas ΔH, with no phase-change, steam-table, or open-system (control-volume) enthalpy treatment.\", \"Heat engines, Carnot efficiency, and the Otto cycle appear in the notes but were left out because the request is limited to internal energy, heat and work, and enthalpy.\"], \"generated_at\": \"2026-11-03T02:05:47+00:00\", \"marks_changes\": false, \"unreadable_sources\": [], \"removed\": []}",
+    "breakdown_error_json": null,
+    "breakdown_version": 1,
+    "breakdown_sources_key": "67353a7fef854bfc"
+   }
+  ],
+  "set_prompts": [
+   {
+    "id": "8160ea903eaf42b4",
+    "set_id": "1298e819c37c414d",
+    "text": "The first law of thermodynamics: internal energy, heat and work, and enthalpy.",
+    "version": 1,
+    "created_at": "2026-11-03T02:05:12+00:00"
+   }
+  ],
+  "sources": [
+   {
+    "id": "67353a7fef854bfc",
+    "set_id": "1298e819c37c414d",
+    "draft_id": null,
+    "kind": "file",
+    "source_type": "pdf",
+    "url": null,
+    "title": "thermo-first-law.pdf",
+    "upload_id": "5b8fb9c1a580428d",
+    "dedupe_key": "sha256:a1a55410e172a58b5c2fffb5ec8d0951517b6467f7f3d30dcca764cc44819be7",
+    "status": "ready",
+    "error_json": null,
+    "position": 0,
+    "created_at": "2026-11-03T02:05:12+00:00"
+   }
+  ],
+  "set_subtopics": [
+   {
+    "id": "a3858dd6440545c3",
+    "set_id": "1298e819c37c414d",
+    "name": "Systems and State vs Path Functions",
+    "summary": "Defines closed and open systems and separates state functions ($U$, $H$, $S$, $P$, $V$, $T$) from path functions ($Q$, $W$). This distinction explains why $\\Delta U$ depends only on the end states while heat and work depend on the process.",
+    "key_concepts_json": "[\"system vs surroundings\", \"closed system\", \"open system (control volume)\", \"state functions\", \"path functions\", \"Q and W are path-dependent\"]",
+    "formulas_json": "[]",
+    "difficulty": 1,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 0,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   },
+   {
+    "id": "a3f9f20b4cc049b6",
+    "set_id": "1298e819c37c414d",
+    "name": "First Law for Closed Systems",
+    "summary": "Energy conservation for a closed system: the change in internal energy equals heat added to the system minus work done by the system. Check the sign convention, because some texts define $W$ as work done on the system.",
+    "key_concepts_json": "[\"energy conservation\", \"internal energy change\", \"heat added to system\", \"work done by system\", \"sign convention (Q − W vs Q + W)\"]",
+    "formulas_json": "[{\"latex\": \"\\\\Delta U = Q - W\", \"description\": \"First law: $\\\\Delta U$ is the change in internal energy, $Q$ the heat added to the system, $W$ the work done by the system.\"}]",
+    "difficulty": 2,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 1,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   },
+   {
+    "id": "2929b720af9749fa",
+    "set_id": "1298e819c37c414d",
+    "name": "First Law Applied to Cycles",
+    "summary": "In a cycle the system returns to its initial state, so state functions do not change and $\\Delta U = 0$. Net heat added therefore equals net work done.",
+    "key_concepts_json": "[\"cyclic process\", \"return to initial state\", \"ΔU = 0 over a cycle\", \"net heat equals net work\"]",
+    "formulas_json": "[{\"latex\": \"\\\\Delta U_{cycle}=0 \\\\Rightarrow Q_{net}=W_{net}\", \"description\": \"Over a full cycle, net heat added $Q_{net}$ equals net work done by the system $W_{net}$.\"}]",
+    "difficulty": 2,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 2,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   },
+   {
+    "id": "a248e7c376224975",
+    "set_id": "1298e819c37c414d",
+    "name": "Boundary Work: Isobaric and Isochoric",
+    "summary": "Boundary work is $\\int P\\,dV$. At constant pressure it is $P(V_2-V_1)$. At constant volume no work is done, so all heat goes into internal energy.",
+    "key_concepts_json": "[\"boundary work as ∫P dV\", \"isobaric work\", \"isochoric: W = 0\", \"ΔU = Q at constant volume\", \"ideal gas law PV = nRT\"]",
+    "formulas_json": "[{\"latex\": \"W=\\\\int P\\\\,dV\", \"description\": \"Boundary work, with $P$ the pressure and $V$ the volume.\"}, {\"latex\": \"W = P(V_2 - V_1)\", \"description\": \"Isobaric work at constant pressure $P$, from volume $V_1$ to $V_2$.\"}, {\"latex\": \"Q = n c_v \\\\Delta T,\\\\; W=0\", \"description\": \"Isochoric process: $n$ moles, $c_v$ the molar specific heat at constant volume, $\\\\Delta T$ the temperature change.\"}]",
+    "difficulty": 2,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 3,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   },
+   {
+    "id": "cbe42de47ea44bf6",
+    "set_id": "1298e819c37c414d",
+    "name": "Isothermal Ideal-Gas Process",
+    "summary": "For an ideal gas at constant temperature $\\Delta U = 0$, so the heat absorbed equals the work done. Use the volume **ratio** $V_2/V_1$ (not the difference) and temperature in kelvin.",
+    "key_concepts_json": "[\"ΔU = 0 for isothermal ideal gas\", \"Q = W\", \"logarithm of volume ratio\", \"temperature in kelvin\", \"common mistake: V2 − V1 instead of ratio\"]",
+    "formulas_json": "[{\"latex\": \"W = nRT\\\\ln\\\\frac{V_2}{V_1} = Q\", \"description\": \"Isothermal work and heat: $n$ moles, $R=8.314$ J/(mol·K), $T$ in kelvin, $V_1$ and $V_2$ initial and final volumes.\"}]",
+    "difficulty": 3,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 4,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   },
+   {
+    "id": "43d2447bdf334637",
+    "set_id": "1298e819c37c414d",
+    "name": "Adiabatic Ideal-Gas Process",
+    "summary": "With no heat transfer ($Q=0$), the work done by the gas comes from a drop in internal energy. Pressure and volume follow $PV^\\gamma=\\text{const}$.",
+    "key_concepts_json": "[\"Q = 0\", \"W = −ΔU\", \"PV^γ = constant\", \"heat capacity ratio γ = cp/cv\", \"work from P and V endpoints\"]",
+    "formulas_json": "[{\"latex\": \"PV^{\\\\gamma}=\\\\text{constant},\\\\quad \\\\gamma=\\\\frac{c_p}{c_v}\", \"description\": \"Adiabatic path for an ideal gas, with $\\\\gamma$ the ratio of specific heats.\"}, {\"latex\": \"W=\\\\frac{P_1V_1-P_2V_2}{\\\\gamma-1}=-\\\\Delta U\", \"description\": \"Adiabatic work done by the gas between states 1 and 2.\"}]",
+    "difficulty": 3,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 5,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   },
+   {
+    "id": "7cd4be60ebfe4e3a",
+    "set_id": "1298e819c37c414d",
+    "name": "Enthalpy and Constant-Pressure Heat",
+    "summary": "Enthalpy combines internal energy with the $PV$ term, $H = U + PV$. At constant pressure, the heat added equals the enthalpy change.",
+    "key_concepts_json": "[\"enthalpy definition\", \"H is a state function\", \"Q_p = ΔH\", \"constant-pressure heating\", \"why PV term appears\"]",
+    "formulas_json": "[{\"latex\": \"H = U + PV\", \"description\": \"Enthalpy, with $U$ internal energy, $P$ pressure and $V$ volume.\"}, {\"latex\": \"Q_p=\\\\Delta H\", \"description\": \"Heat added at constant pressure equals the enthalpy change.\"}]",
+    "difficulty": 3,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 6,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   },
+   {
+    "id": "8c012894cfcf44b5",
+    "set_id": "1298e819c37c414d",
+    "name": "Ideal-Gas Specific Heats cv and cp",
+    "summary": "For an ideal gas, $\\Delta U$ uses $c_v$ and $\\Delta H$ uses $c_p$, with $c_p - c_v = R$. Monatomic and diatomic gases have different values and therefore different $\\gamma$.",
+    "key_concepts_json": "[\"ΔU = n cv ΔT\", \"ΔH = n cp ΔT\", \"cp − cv = R\", \"monatomic: γ = 5/3\", \"diatomic near room temperature: γ = 1.4\"]",
+    "formulas_json": "[{\"latex\": \"\\\\Delta U = n c_v \\\\Delta T,\\\\quad \\\\Delta H = n c_p \\\\Delta T\", \"description\": \"Ideal-gas changes in internal energy and enthalpy for any process, with $n$ moles and temperature change $\\\\Delta T$.\"}, {\"latex\": \"c_p - c_v = R\", \"description\": \"Mayer relation for an ideal gas, with $R$ the gas constant.\"}, {\"latex\": \"c_v=\\\\tfrac{3}{2}R,\\\\; c_p=\\\\tfrac{5}{2}R\", \"description\": \"Monatomic ideal gas values.\"}]",
+    "difficulty": 3,
+    "source_ids_json": "[\"67353a7fef854bfc\"]",
+    "position": 7,
+    "status": "active",
+    "created_version": 1,
+    "updated_version": 1
+   }
+  ],
+  "guides": [
+   {
+    "id": "db9f5725745849d3",
+    "set_id": "1298e819c37c414d",
+    "session_id": null,
+    "kind": "subtopics",
+    "subtopic_ids_json": "[\"a3858dd6440545c3\", \"a3f9f20b4cc049b6\"]",
+    "status": "ready",
+    "content_json": "{\"generated_at\": \"2026-11-03T02:05:49+00:00\", \"overall_score\": null, \"sections\": [{\"subtopic_id\": \"a3858dd6440545c3\", \"name\": \"Systems and State vs Path Functions\", \"score\": null, \"weak_reasons\": [], \"status\": \"ready\", \"section\": {\"title\": \"Systems and State vs Path Functions\", \"explanation\": \"**Start with the picture.** Thermodynamics begins by drawing a boundary. Everything inside is the **system**, the region you analyze. Everything outside is the **surroundings**. Energy is bookkept across that boundary. A **closed system** exchanges energy (heat, work) but *not* mass with its surroundings. An **open system** (a *control volume*) exchanges both energy and mass. A sealed piston-cylinder is closed. A turbine or pipe with fluid flowing through it is open.\\n\\n**Where you are vs. how you got there.** Think of hiking to a mountain summit. Your *altitude* depends only on where you stand, whichever trail you took. That is a **state function**. The *distance you walked* and the *calories you burned* depend on the trail. Those are **path functions**. In your notes, $U$, $H$, $S$, $P$, $V$, and $T$ are state functions. They depend only on the current equilibrium state. Heat $Q$ and work $W$ are path functions. Their values depend on the process path between two states.\\n\\n**Why this matters.** Since $U$ is a state function, $\\\\Delta U = U_2 - U_1$ depends only on the end states. Heat and work each depend on the path, but the first law, $\\\\Delta U = Q - W$, says their *difference* is path-independent. If you change the path between the same two states, $Q$ and $W$ change by the same amount and $\\\\Delta U$ stays fixed. A cycle returns the system to its initial state, so every state function returns to its starting value, including $\\\\Delta U = 0$. That is why $Q_{net} = W_{net}$ for a cycle, even though $Q$ and $W$ are not zero.\\n\\n**Notation tip.** Because $Q$ and $W$ are not properties of a state, we don't write $\\\\Delta Q$ or $\\\\Delta W$. We say \\\"the heat added\\\" and \\\"the work done\\\" during a process. Also check the sign convention. In your notes $Q$ is heat added TO the system, and $W$ is work done BY the system.\", \"key_formulas\": [{\"latex\": \"\\\\Delta U = U_2 - U_1\", \"description\": \"Change in a state function depends only on the final state (2) and initial state (1), not on the path.\"}, {\"latex\": \"\\\\Delta U = Q - W\", \"description\": \"First law for a closed system: Q = heat added to the system, W = work done by the system.\"}, {\"latex\": \"\\\\oint dU = 0\", \"description\": \"Over a complete cycle any state function returns to its initial value, so U has zero net change.\"}, {\"latex\": \"Q_{net} = W_{net}\", \"description\": \"For a cycle, ΔU = 0, so net heat added equals net work done by the system.\"}, {\"latex\": \"W = \\\\int_{V_1}^{V_2} P\\\\,dV\", \"description\": \"Boundary work is the area under the P–V path, so it depends on the path taken from V1 to V2.\"}], \"diagram\": {\"include\": true, \"kind\": \"concept_map\", \"mermaid\": \"flowchart TD\\nA[\\\"Thermodynamic analysis\\\"] --> B[\\\"System and surroundings\\\"]\\nB --> C[\\\"Closed system: energy only\\\"]\\nB --> D[\\\"Open system (control volume): energy and mass\\\"]\\nA --> E[\\\"Properties and processes\\\"]\\nE --> F[\\\"State functions: U, H, S, P, V, T\\\"]\\nE --> G[\\\"Path functions: Q, W\\\"]\\nF --> H[\\\"Change depends only on end states\\\"]\\nG --> I[\\\"Value depends on the process path\\\"]\\nH --> J[\\\"ΔU = Q - W is path-independent\\\"]\\nI --> J\", \"caption\": \"System types and the split between state and path functions, which meet in the first law.\"}, \"chart\": {\"include\": true, \"chart_type\": \"line\", \"title\": \"Same end states, different paths, different work\", \"x_label\": \"Volume V (L)\", \"y_label\": \"Pressure P (kPa)\", \"series\": [{\"name\": \"Path A: isothermal at 300 K\", \"points\": [{\"label\": \"\", \"x\": 10.0, \"y\": 249.42}, {\"label\": \"\", \"x\": 11.0, \"y\": 226.75}, {\"label\": \"\", \"x\": 12.0, \"y\": 207.85}, {\"label\": \"\", \"x\": 13.0, \"y\": 191.86}, {\"label\": \"\", \"x\": 14.0, \"y\": 178.16}, {\"label\": \"\", \"x\": 15.0, \"y\": 166.28}, {\"label\": \"\", \"x\": 16.0, \"y\": 155.89}, {\"label\": \"\", \"x\": 17.0, \"y\": 146.72}, {\"label\": \"\", \"x\": 18.0, \"y\": 138.57}, {\"label\": \"\", \"x\": 19.0, \"y\": 131.27}, {\"label\": \"\", \"x\": 20.0, \"y\": 124.71}]}, {\"name\": \"Path B: isochoric drop, then isobaric expansion\", \"points\": [{\"label\": \"\", \"x\": 10.0, \"y\": 249.42}, {\"label\": \"\", \"x\": 10.0, \"y\": 124.71}, {\"label\": \"\", \"x\": 20.0, \"y\": 124.71}]}], \"caption\": \"For 1 mol of ideal gas going from (10 L, 249.4 kPa) to (20 L, 124.7 kPa), the area under path A is about 1729 J and under path B about 1247 J. Both have ΔU = 0.\"}, \"worked_example\": {\"problem\": \"One mole of ideal gas goes from state 1 (V1 = 10 L, T = 300 K) to state 2 (V2 = 20 L, T = 300 K). Path A is an isothermal expansion. Path B first cools the gas at constant volume (10 L) until the pressure halves, then expands it at constant pressure to 20 L. Find ΔU, W, and Q for each path, and explain what is the same and what differs.\", \"steps\": [\"**End states.** $P_1 = nRT/V_1 = (1)(8.314)(300)/(0.010) \\\\approx 249.4$ kPa. State 2 has the same $T$ and double the volume, so $P_2 \\\\approx 124.7$ kPa.\", \"**ΔU is a state function.** Both states have $T = 300$ K, so for an ideal gas $\\\\Delta U = n c_v \\\\Delta T = 0$ for **both** paths.\", \"**Path A work.** $W_A = nRT\\\\ln(V_2/V_1) = (1)(8.314)(300)\\\\ln 2 \\\\approx 1729$ J.\", \"**Path B work.** The isochoric step has $W = 0$. The isobaric step at $P_2$ gives $W = P_2(V_2 - V_1) = (124.7\\\\times10^3)(0.010) \\\\approx 1247$ J. So $W_B \\\\approx 1247$ J.\", \"**Heat from the first law.** $Q = \\\\Delta U + W$. Path A: $Q_A = 0 + 1729 = 1729$ J. Path B: $Q_B = 0 + 1247 = 1247$ J.\", \"**Interpretation.** $\\\\Delta U$ is identical because it is a state function. $W$ and $Q$ differ because they are path functions, but on each path $Q - W = 0$.\"], \"answer\": \"ΔU = 0 for both paths. Path A: W = Q ≈ 1729 J. Path B: W = Q ≈ 1247 J. Same ΔU, different Q and W, because Q and W depend on the path.\"}, \"common_mistakes\": [{\"mistake\": \"Treating Q or W as a state function, for example saying 'the gas has 500 J of heat' or writing ΔQ.\", \"why\": \"Heat and work are energy in transit during a process, not stored properties of a state. They depend on the path.\", \"fix\": \"Say 'heat added during the process' and 'work done during the process'. Use Q and W, not ΔQ and ΔW.\", \"from_your_answers\": false}, {\"mistake\": \"Assuming two processes between the same end states must have the same work or heat.\", \"why\": \"Only the state functions (ΔU, ΔH, and so on) are fixed by the end states. The area under the P–V curve changes with the path.\", \"fix\": \"Fix the path before computing W. Use ΔU = Q − W to see that Q and W shift together.\", \"from_your_answers\": false}, {\"mistake\": \"Mixing up closed and open systems, for example calling a turbine with flowing steam a closed system.\", \"why\": \"A closed system has no mass crossing its boundary. Flow through a turbine or pipe means mass crosses, so it is a control volume.\", \"fix\": \"Ask whether mass crosses the boundary. If yes, it is open. If only heat and work cross, it is closed.\", \"from_your_answers\": false}, {\"mistake\": \"Assuming Q = 0 and W = 0 over a cycle because ΔU = 0.\", \"why\": \"ΔU = 0 only means Q_net = W_net. A cycle can still absorb heat and do net work, as an engine does.\", \"fix\": \"Write Q_net = W_net for a cycle and compute each from the path.\", \"from_your_answers\": false}], \"practice_questions\": [{\"question\": \"Classify each as a state function or path function: (a) enthalpy $H$, (b) work $W$, (c) temperature $T$, (d) heat $Q$, (e) entropy $S$.\", \"answer\": \"State functions: H, T, S. Path functions: W and Q.\"}, {\"question\": \"Classify each as a closed system, an open system, or ambiguous without more information: (a) gas sealed in a piston-cylinder, (b) water flowing through a pump, (c) a sealed rigid tank being heated.\", \"answer\": \"(a) Closed: energy can cross as heat and work, but no mass. (b) Open (control volume): mass flows through. (c) Closed: only heat crosses, with no mass transfer and no boundary work because V is constant.\"}, {\"question\": \"A gas goes from state 1 to state 2 along path X, absorbing 500 J of heat and doing 200 J of work. Along path Y between the same states it does 350 J of work. (a) What is ΔU? (b) What heat is added along Y? (c) If the gas returns from 2 to 1 along a path where 150 J of work is done by the gas, what is Q for the return?\", \"answer\": \"(a) ΔU = Q − W = 500 − 200 = 300 J, the same for both paths. (b) Q_Y = ΔU + W = 300 + 350 = 650 J. (c) The return has ΔU = −300 J, so Q = ΔU + W = −300 + 150 = −150 J, meaning 150 J of heat leaves the gas.\"}]}, \"error\": null}, {\"subtopic_id\": \"a3f9f20b4cc049b6\", \"name\": \"First Law for Closed Systems\", \"score\": null, \"weak_reasons\": [], \"status\": \"ready\", \"section\": {\"title\": \"First Law for Closed Systems\", \"explanation\": \"Think of a closed system as a bank account for energy. No mass crosses the boundary, so the energy stored inside, the **internal energy** $U$, can change in only two ways: heat flows across the boundary, or the system does work on its surroundings (or they do work on it). Nothing is created or destroyed. Whatever you add or remove must show up as a change in $U$.\\n\\nIn your notes the first law is $\\\\Delta U = Q - W$. Here $Q$ is the heat added **to** the system, and $W$ is the work done **by** the system on its surroundings. Heat going in raises $U$. Work going out lowers $U$, because the system spends energy to do it. So a gas that absorbs heat and expands has two competing effects, and the sign of $\\\\Delta U$ depends on which is bigger.\\n\\n**Sign convention matters.** Some texts define $W$ as work done *on* the system and write $\\\\Delta U = Q + W$. The physics is the same. Only the sign of $W$ flips. Before you plug in numbers, check which convention your problem uses. In this course (ME 230 notes) use $\\\\Delta U = Q - W$ with $W$ by the system. Compression then gives a negative $W$. Expansion gives a positive $W$.\\n\\nTwo things to keep in mind. $U$ is a **state function**, so $\\\\Delta U$ depends only on the initial and final states. $Q$ and $W$ are **path functions**, so each depends on the process. Their difference $Q-W$ doesn't. For a full cycle the system returns to its starting state, so $\\\\Delta U = 0$ and $Q_{net} = W_{net}$.\", \"key_formulas\": [{\"latex\": \"\\\\Delta U = Q - W\", \"description\": \"First law (this course): $\\\\Delta U$ is the change in internal energy, $Q$ the heat added TO the system, $W$ the work done BY the system.\"}, {\"latex\": \"\\\\Delta U = Q + W_{\\\\text{on}}\", \"description\": \"Alternative convention: $W_{\\\\text{on}}$ is work done ON the system, so $W_{\\\\text{on}} = -W$.\"}, {\"latex\": \"Q_{net} = W_{net}\\\\quad (\\\\text{cycle},\\\\ \\\\Delta U = 0)\", \"description\": \"Over a complete cycle the net heat added equals the net work done by the system.\"}, {\"latex\": \"W = \\\\int P\\\\,dV\", \"description\": \"Boundary work done by the system, with $P$ pressure and $V$ volume.\"}, {\"latex\": \"\\\\Delta U = n c_v \\\\Delta T\", \"description\": \"Ideal-gas internal energy change, with $n$ moles, $c_v$ molar specific heat at constant volume, and $\\\\Delta T$ the temperature change.\"}], \"diagram\": {\"include\": true, \"kind\": \"flowchart\", \"mermaid\": \"flowchart LR\\n Q[\\\"Heat added to system (Q > 0)\\\"] -->|\\\"raises\\\"| U[\\\"Internal energy U of closed system\\\"]\\n U -->|\\\"lowers when system does work\\\"| W[\\\"Work done by system (W > 0)\\\"]\\n Qout[\\\"Heat removed (Q < 0)\\\"] -->|\\\"lowers\\\"| U\\n Won[\\\"Work done on system (W < 0)\\\"] -->|\\\"raises\\\"| U\\n U --> R[\\\"ΔU = Q − W\\\"]\", \"caption\": \"Energy bookkeeping for a closed system: heat in and work done on the system raise U, while heat out and work done by the system lower it.\"}, \"chart\": {\"include\": true, \"chart_type\": \"line\", \"title\": \"Isothermal expansion: work and heat for 1 mol at 300 K\", \"x_label\": \"Final volume V2 (L), starting from V1 = 10 L\", \"y_label\": \"W = Q (J)\", \"series\": [{\"name\": \"W = Q (ΔU = 0)\", \"points\": [{\"label\": \"\", \"x\": 10.0, \"y\": 0.0}, {\"label\": \"\", \"x\": 12.0, \"y\": 454.8}, {\"label\": \"\", \"x\": 14.0, \"y\": 839.2}, {\"label\": \"\", \"x\": 16.0, \"y\": 1172.3}, {\"label\": \"\", \"x\": 18.0, \"y\": 1466.1}, {\"label\": \"\", \"x\": 20.0, \"y\": 1728.8}, {\"label\": \"\", \"x\": 22.0, \"y\": 1966.6}, {\"label\": \"\", \"x\": 24.0, \"y\": 2183.6}, {\"label\": \"\", \"x\": 26.0, \"y\": 2383.2}, {\"label\": \"\", \"x\": 28.0, \"y\": 2568.1}, {\"label\": \"\", \"x\": 30.0, \"y\": 2740.1}]}], \"caption\": \"For an isothermal ideal gas, ΔU = 0, so every joule of work done by the gas comes from heat absorbed (Q = W = nRT ln(V2/V1)). The curve flattens because work depends on the volume ratio.\"}, \"worked_example\": {\"problem\": \"A gas in a closed piston-cylinder absorbs 600 J of heat while the piston compresses it, with 250 J of work done on the gas. Find ΔU using (a) ΔU = Q − W and (b) ΔU = Q + W_on.\", \"steps\": [\"**Identify the signs.** Heat is added to the system, so $Q = +600\\\\ \\\\text{J}$. The gas is compressed, so the surroundings do work on it. Work done *by* the system is therefore negative: $W = -250\\\\ \\\\text{J}$.\", \"**(a) Convention $\\\\Delta U = Q - W$:** $\\\\Delta U = 600 - (-250) = 850\\\\ \\\\text{J}$.\", \"**(b) Convention $\\\\Delta U = Q + W_{on}$:** here $W_{on} = +250\\\\ \\\\text{J}$, so $\\\\Delta U = 600 + 250 = 850\\\\ \\\\text{J}$.\", \"**Sanity check:** Both heat in and work in add energy to the gas, so $U$ must increase. A positive $\\\\Delta U$ fits.\"], \"answer\": \"ΔU = +850 J under either convention. The conventions only differ in how W is defined, not in the physical result.\"}, \"common_mistakes\": [{\"mistake\": \"Using $\\\\Delta U = Q - W$ with $W$ taken as work done ON the system (or mixing the two conventions).\", \"why\": \"The minus sign in $Q - W$ is only correct when $W$ is work done by the system. Using work-on there flips the sign of the work term and gives the wrong $\\\\Delta U$.\", \"fix\": \"Write down which convention you are using first. If a gas is compressed and $W$ is by the system, make $W$ negative. Then check that the sign of $\\\\Delta U$ makes physical sense.\", \"from_your_answers\": false}, {\"mistake\": \"Treating heat removed from the system as a positive $Q$.\", \"why\": \"$Q$ is heat added TO the system. Heat leaving is negative, so using a positive value overstates $\\\\Delta U$.\", \"fix\": \"Assign $Q<0$ for heat rejected or lost, e.g. $Q=-150\\\\ \\\\text{J}$ if 150 J leaves.\", \"from_your_answers\": false}, {\"mistake\": \"Thinking $Q$ and $W$ are state functions, or that $\\\\Delta U$ depends on the path.\", \"why\": \"Only $U$ is a state function. $Q$ and $W$ individually depend on the path, but $Q-W$ is the same for every path between the same two states.\", \"fix\": \"Compute $\\\\Delta U$ from the states (e.g. $n c_v \\\\Delta T$ for an ideal gas) when possible, and use $Q$ and $W$ only for the specific process.\", \"from_your_answers\": false}, {\"mistake\": \"Assuming $\\\\Delta U = 0$ for any process that returns to the same temperature, or for any process that has work.\", \"why\": \"$\\\\Delta U = 0$ holds for a full cycle, and for an isothermal ideal gas. It does not hold generally.\", \"fix\": \"Check the process type before setting $\\\\Delta U = 0$.\", \"from_your_answers\": false}], \"practice_questions\": [{\"question\": \"A closed system loses 150 J of heat to the surroundings while it does 100 J of work on the surroundings. What is $\\\\Delta U$ (using $\\\\Delta U = Q - W$)?\", \"answer\": \"Heat leaves, so $Q = -150$ J. Work is done by the system, so $W = +100$ J. Then $\\\\Delta U = -150 - 100 = -250$ J. The internal energy decreases by 250 J.\"}, {\"question\": \"One mole of a monatomic ideal gas is heated at constant volume from 300 K to 400 K in a closed rigid container. Find $\\\\Delta U$, $W$, and $Q$. Use $R = 8.314$ J/(mol K).\", \"answer\": \"Constant volume gives $W = 0$. For a monatomic gas $c_v = \\\\tfrac{3}{2}R$, so $\\\\Delta U = n c_v \\\\Delta T = (1)(1.5)(8.314)(100) \\\\approx 1247$ J. By the first law $Q = \\\\Delta U + W = 1247$ J of heat is added.\"}, {\"question\": \"A heat engine cycle absorbs 1000 J of heat from a hot reservoir and rejects 650 J to a cold reservoir. What is the net work done by the system in one cycle, and what is $\\\\Delta U$ over the cycle?\", \"answer\": \"Over a cycle $\\\\Delta U = 0$. Net heat is $Q_{net} = 1000 - 650 = 350$ J, so $W_{net} = Q_{net} = 350$ J.\"}]}, \"error\": null}]}",
+    "error_json": null,
+    "created_at": "2026-11-03T02:05:49+00:00"
+   }
+  ],
+  "playlists": [
+   {
+    "id": "216555a1977d467c",
+    "set_id": "1298e819c37c414d",
+    "subtopic_ids_json": "[\"a3858dd6440545c3\", \"a3f9f20b4cc049b6\"]",
+    "status": "ready",
+    "error_json": null,
+    "spares_json": "{\"a3858dd6440545c3\": [{\"video_id\": \"h7_HXIDZ1zY\", \"title\": \"Path Functions\", \"reason\": \"Dedicated video on path functions, covering why heat and work depend on the process.\"}], \"a3f9f20b4cc049b6\": [{\"video_id\": \"lnWElhmk8ig\", \"title\": \"The first law of thermodynamics for a closed system is dU = dq + dw, where dw = dw_(pv)+dw_(non-... - YouTube\", \"reason\": \"Gives the closed-system first law with explicit heat and work terms; its sign convention is dU = dq + dw, so check it against the target's convention.\"}]}",
+    "created_at": "2026-11-03T02:06:19+00:00"
+   }
+  ],
+  "sessions": [
+   {
+    "id": "9ba8f985c9f14618",
+    "created_at": "2026-11-03T02:06:56+00:00",
+    "completed_at": "2026-11-03T02:07:27+00:00",
+    "subject": "Thermodynamics",
+    "title": "Sample: The First Law of Thermodynamics",
+    "material": "The first law of thermodynamics: internal energy, heat and work, and enthalpy.",
+    "config_json": "{\"types\": [\"multiple_choice\", \"select_all\", \"true_false\", \"matching\", \"ordering\"], \"difficulty\": 3, \"adaptive\": false, \"count\": 5, \"languages\": [\"Python\"], \"feedback_mode\": \"immediate\", \"model_fast\": \"haiku\", \"model_smart\": \"sonnet\", \"docs_truncated\": false, \"doc_chars\": 3072, \"slots\": [{\"subtopic_id\": \"da30fec8ba8e4dc8\", \"type\": \"select_all\"}, {\"subtopic_id\": \"c215e933e1434ffa\", \"type\": \"matching\"}, {\"subtopic_id\": \"1bc5f0e9e0fb421d\", \"type\": \"true_false\"}, {\"subtopic_id\": \"108fdedfd4db492a\", \"type\": \"multiple_choice\"}, {\"subtopic_id\": \"5704fb0593ec4fdf\", \"type\": \"ordering\"}], \"deferred_slots\": []}",
+    "status": "completed",
+    "error_json": null,
+    "parent_session_id": null,
+    "current_difficulty": 3,
+    "score": 60.0,
+    "study_set_id": "1298e819c37c414d"
+   },
+   {
+    "id": "53edab7a13ee4ca4",
+    "created_at": "2026-11-03T02:07:27+00:00",
+    "completed_at": null,
+    "subject": "Thermodynamics",
+    "title": "Sample: The First Law of Thermodynamics",
+    "material": "The first law of thermodynamics: internal energy, heat and work, and enthalpy.",
+    "config_json": "{\"types\": [\"multiple_choice\", \"select_all\", \"true_false\", \"matching\", \"ordering\"], \"difficulty\": 3, \"adaptive\": false, \"count\": 5, \"languages\": [\"Python\"], \"feedback_mode\": \"immediate\", \"model_fast\": \"haiku\", \"model_smart\": \"sonnet\", \"docs_truncated\": false, \"doc_chars\": 3072, \"slots\": [{\"subtopic_id\": \"a19d0e6a43c64122\", \"type\": \"select_all\"}, {\"subtopic_id\": \"f9730d10e52844f4\", \"type\": \"ordering\"}, {\"subtopic_id\": \"364abf4c093b41dc\", \"type\": \"multiple_choice\"}, {\"subtopic_id\": \"69ffbf2cef2a486a\", \"type\": \"matching\"}, {\"subtopic_id\": \"a42a6a60a61e4b13\", \"type\": \"true_false\"}], \"deferred_slots\": []}",
+    "status": "ready",
+    "error_json": null,
+    "parent_session_id": null,
+    "current_difficulty": 3,
+    "score": null,
+    "study_set_id": "1298e819c37c414d"
+   }
+  ],
+  "session_documents": [
+   {
+    "session_id": "53edab7a13ee4ca4",
+    "upload_id": "5b8fb9c1a580428d",
+    "position": 0
+   },
+   {
+    "session_id": "9ba8f985c9f14618",
+    "upload_id": "5b8fb9c1a580428d",
+    "position": 0
+   }
+  ],
+  "subtopics": [
+   {
+    "id": "da30fec8ba8e4dc8",
+    "session_id": "9ba8f985c9f14618",
+    "name": "Systems and State vs Path Functions",
+    "description": "Defines closed and open systems and separates state functions ($U$, $H$, $S$, $P$, $V$, $T$) from path functions ($Q$, $W$). This distinction explains why $\\Delta U$ depends only on the end states while heat and work depend on the process. Key concepts: system vs surroundings, closed system, open system (control volume), state functions, path functions, Q and W are path-dependent.",
+    "position": 0,
+    "set_subtopic_id": "a3858dd6440545c3"
+   },
+   {
+    "id": "eef0782488414138",
+    "session_id": "9ba8f985c9f14618",
+    "name": "First Law for Closed Systems",
+    "description": "Energy conservation for a closed system: the change in internal energy equals heat added to the system minus work done by the system. Check the sign convention, because some texts define $W$ as work done on the system. Key concepts: energy conservation, internal energy change, heat added to system, work done by system, sign convention (Q − W vs Q + W).",
+    "position": 1,
+    "set_subtopic_id": "a3f9f20b4cc049b6"
+   },
+   {
+    "id": "951c6623927546ed",
+    "session_id": "9ba8f985c9f14618",
+    "name": "First Law Applied to Cycles",
+    "description": "In a cycle the system returns to its initial state, so state functions do not change and $\\Delta U = 0$. Net heat added therefore equals net work done. Key concepts: cyclic process, return to initial state, ΔU = 0 over a cycle, net heat equals net work.",
+    "position": 2,
+    "set_subtopic_id": "2929b720af9749fa"
+   },
+   {
+    "id": "c215e933e1434ffa",
+    "session_id": "9ba8f985c9f14618",
+    "name": "Boundary Work: Isobaric and Isochoric",
+    "description": "Boundary work is $\\int P\\,dV$. At constant pressure it is $P(V_2-V_1)$. At constant volume no work is done, so all heat goes into internal energy. Key concepts: boundary work as ∫P dV, isobaric work, isochoric: W = 0, ΔU = Q at constant volume, ideal gas law PV = nRT.",
+    "position": 3,
+    "set_subtopic_id": "a248e7c376224975"
+   },
+   {
+    "id": "108fdedfd4db492a",
+    "session_id": "9ba8f985c9f14618",
+    "name": "Isothermal Ideal-Gas Process",
+    "description": "For an ideal gas at constant temperature $\\Delta U = 0$, so the heat absorbed equals the work done. Use the volume **ratio** $V_2/V_1$ (not the difference) and temperature in kelvin. Key concepts: ΔU = 0 for isothermal ideal gas, Q = W, logarithm of volume ratio, temperature in kelvin, common mistake: V2 − V1 instead of ratio.",
+    "position": 4,
+    "set_subtopic_id": "cbe42de47ea44bf6"
+   },
+   {
+    "id": "305609ac4c794d1b",
+    "session_id": "9ba8f985c9f14618",
+    "name": "Adiabatic Ideal-Gas Process",
+    "description": "With no heat transfer ($Q=0$), the work done by the gas comes from a drop in internal energy. Pressure and volume follow $PV^\\gamma=\\text{const}$. Key concepts: Q = 0, W = −ΔU, PV^γ = constant, heat capacity ratio γ = cp/cv, work from P and V endpoints.",
+    "position": 5,
+    "set_subtopic_id": "43d2447bdf334637"
+   },
+   {
+    "id": "5704fb0593ec4fdf",
+    "session_id": "9ba8f985c9f14618",
+    "name": "Enthalpy and Constant-Pressure Heat",
+    "description": "Enthalpy combines internal energy with the $PV$ term, $H = U + PV$. At constant pressure, the heat added equals the enthalpy change. Key concepts: enthalpy definition, H is a state function, Q_p = ΔH, constant-pressure heating, why PV term appears.",
+    "position": 6,
+    "set_subtopic_id": "7cd4be60ebfe4e3a"
+   },
+   {
+    "id": "1bc5f0e9e0fb421d",
+    "session_id": "9ba8f985c9f14618",
+    "name": "Ideal-Gas Specific Heats cv and cp",
+    "description": "For an ideal gas, $\\Delta U$ uses $c_v$ and $\\Delta H$ uses $c_p$, with $c_p - c_v = R$. Monatomic and diatomic gases have different values and therefore different $\\gamma$. Key concepts: ΔU = n cv ΔT, ΔH = n cp ΔT, cp − cv = R, monatomic: γ = 5/3, diatomic near room temperature: γ = 1.4.",
+    "position": 7,
+    "set_subtopic_id": "8c012894cfcf44b5"
+   },
+   {
+    "id": "c14515f423f146bf",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "Systems and State vs Path Functions",
+    "description": "Defines closed and open systems and separates state functions ($U$, $H$, $S$, $P$, $V$, $T$) from path functions ($Q$, $W$). This distinction explains why $\\Delta U$ depends only on the end states while heat and work depend on the process. Key concepts: system vs surroundings, closed system, open system (control volume), state functions, path functions, Q and W are path-dependent.",
+    "position": 0,
+    "set_subtopic_id": "a3858dd6440545c3"
+   },
+   {
+    "id": "a42a6a60a61e4b13",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "First Law for Closed Systems",
+    "description": "Energy conservation for a closed system: the change in internal energy equals heat added to the system minus work done by the system. Check the sign convention, because some texts define $W$ as work done on the system. Key concepts: energy conservation, internal energy change, heat added to system, work done by system, sign convention (Q − W vs Q + W).",
+    "position": 1,
+    "set_subtopic_id": "a3f9f20b4cc049b6"
+   },
+   {
+    "id": "7a569830a28d4715",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "First Law Applied to Cycles",
+    "description": "In a cycle the system returns to its initial state, so state functions do not change and $\\Delta U = 0$. Net heat added therefore equals net work done. Key concepts: cyclic process, return to initial state, ΔU = 0 over a cycle, net heat equals net work.",
+    "position": 2,
+    "set_subtopic_id": "2929b720af9749fa"
+   },
+   {
+    "id": "a19d0e6a43c64122",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "Boundary Work: Isobaric and Isochoric",
+    "description": "Boundary work is $\\int P\\,dV$. At constant pressure it is $P(V_2-V_1)$. At constant volume no work is done, so all heat goes into internal energy. Key concepts: boundary work as ∫P dV, isobaric work, isochoric: W = 0, ΔU = Q at constant volume, ideal gas law PV = nRT.",
+    "position": 3,
+    "set_subtopic_id": "a248e7c376224975"
+   },
+   {
+    "id": "364abf4c093b41dc",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "Isothermal Ideal-Gas Process",
+    "description": "For an ideal gas at constant temperature $\\Delta U = 0$, so the heat absorbed equals the work done. Use the volume **ratio** $V_2/V_1$ (not the difference) and temperature in kelvin. Key concepts: ΔU = 0 for isothermal ideal gas, Q = W, logarithm of volume ratio, temperature in kelvin, common mistake: V2 − V1 instead of ratio.",
+    "position": 4,
+    "set_subtopic_id": "cbe42de47ea44bf6"
+   },
+   {
+    "id": "69ffbf2cef2a486a",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "Adiabatic Ideal-Gas Process",
+    "description": "With no heat transfer ($Q=0$), the work done by the gas comes from a drop in internal energy. Pressure and volume follow $PV^\\gamma=\\text{const}$. Key concepts: Q = 0, W = −ΔU, PV^γ = constant, heat capacity ratio γ = cp/cv, work from P and V endpoints.",
+    "position": 5,
+    "set_subtopic_id": "43d2447bdf334637"
+   },
+   {
+    "id": "1d82c76e32554342",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "Enthalpy and Constant-Pressure Heat",
+    "description": "Enthalpy combines internal energy with the $PV$ term, $H = U + PV$. At constant pressure, the heat added equals the enthalpy change. Key concepts: enthalpy definition, H is a state function, Q_p = ΔH, constant-pressure heating, why PV term appears.",
+    "position": 6,
+    "set_subtopic_id": "7cd4be60ebfe4e3a"
+   },
+   {
+    "id": "f9730d10e52844f4",
+    "session_id": "53edab7a13ee4ca4",
+    "name": "Ideal-Gas Specific Heats cv and cp",
+    "description": "For an ideal gas, $\\Delta U$ uses $c_v$ and $\\Delta H$ uses $c_p$, with $c_p - c_v = R$. Monatomic and diatomic gases have different values and therefore different $\\gamma$. Key concepts: ΔU = n cv ΔT, ΔH = n cp ΔT, cp − cv = R, monatomic: γ = 5/3, diatomic near room temperature: γ = 1.4.",
+    "position": 7,
+    "set_subtopic_id": "8c012894cfcf44b5"
+   }
+  ],
+  "questions": [
+   {
+    "id": "8a8a74bd5b694275",
+    "session_id": "53edab7a13ee4ca4",
+    "position": null,
+    "slot": 0,
+    "subtopic_id": "a19d0e6a43c64122",
+    "type": "select_all",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 0, \"subtopic_id\": \"a19d0e6a43c64122\", \"difficulty\": 3, \"prompt\": \"Select all that apply. Two moles of an ideal gas sit in a cylinder with a movable piston. The gas is held at a constant pressure of $P = 100$ kPa while its volume expands from $V_1 = 0.020$ m$^3$ to $V_2 = 0.035$ m$^3$. Which statements about the boundary work are correct?\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3, Work in Ideal-Gas Processes (isobaric and isochoric rows)\", \"explanation\": \"Boundary work is $\\\\int P\\\\,dV$, and at constant pressure this reduces to $P(V_2-V_1) = (100000)(0.015) = 1500$ J. In a rigid container the volume does not change, so $W=0$ and all heat goes into $\\\\Delta U$; the $nRT\\\\ln(V_2/V_1)$ formula applies only to isothermal processes.\", \"type\": \"select_all\", \"options\": [\"The boundary work done by the gas is 1500 J.\", \"The boundary work equals $nRT\\\\ln(V_2/V_1)$, because work depends on the volume ratio.\", \"Because the pressure is constant, $\\\\int P\\\\,dV$ reduces to $P(V_2-V_1)$.\", \"If the same gas were held in a rigid container instead, the boundary work would still be 1500 J.\", \"In a rigid container with the same gas, $W=0$, so all the heat added changes the internal energy.\"], \"correct_indices\": [0, 2, 4]}",
+    "display_json": "{\"type\": \"select_all\", \"type_label\": \"Select all that apply\", \"subtopic_id\": \"a19d0e6a43c64122\", \"subtopic_name\": \"Boundary Work: Isobaric and Isochoric\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Select all that apply. Two moles of an ideal gas sit in a cylinder with a movable piston. The gas is held at a constant pressure of $P = 100$ kPa while its volume expands from $V_1 = 0.020$ m$^3$ to $V_2 = 0.035$ m$^3$. Which statements about the boundary work are correct?\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3, Work in Ideal-Gas Processes (isobaric and isochoric rows)\", \"options\": [{\"id\": 2, \"text\": \"Because the pressure is constant, $\\\\int P\\\\,dV$ reduces to $P(V_2-V_1)$.\"}, {\"id\": 4, \"text\": \"In a rigid container with the same gas, $W=0$, so all the heat added changes the internal energy.\"}, {\"id\": 0, \"text\": \"The boundary work done by the gas is 1500 J.\"}, {\"id\": 3, \"text\": \"If the same gas were held in a rigid container instead, the boundary work would still be 1500 J.\"}, {\"id\": 1, \"text\": \"The boundary work equals $nRT\\\\ln(V_2/V_1)$, because work depends on the volume ratio.\"}]}",
+    "status": "pool",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:07:45+00:00"
+   },
+   {
+    "id": "31eb0fd82da548a4",
+    "session_id": "53edab7a13ee4ca4",
+    "position": null,
+    "slot": 1,
+    "subtopic_id": "f9730d10e52844f4",
+    "type": "ordering",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 1, \"subtopic_id\": \"f9730d10e52844f4\", \"difficulty\": 3, \"prompt\": \"Order the steps to find the heat added to $n$ moles of a diatomic ideal gas heated at constant pressure from $T_1$ to $T_2$ (temperatures in kelvin). List the steps in the correct order, first to last.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 4, Enthalpy and Specific Heats\", \"explanation\": \"At constant pressure $Q_p=\\\\Delta H=n c_p \\\\Delta T$. For a diatomic gas $c_v=\\\\tfrac{5}{2}R$, so $c_p=c_v+R=\\\\tfrac{7}{2}R$, and then $Q=n c_p (T_2-T_1)$ with kelvin temperatures.\", \"type\": \"ordering\", \"items\": [\"Recognize that the process is at constant pressure, so the heat added equals the enthalpy change, $Q_p = \\\\Delta H$.\", \"Find $c_v$ for a diatomic ideal gas near room temperature: $c_v = \\\\tfrac{5}{2}R$.\", \"Compute $c_p = c_v + R = \\\\tfrac{7}{2}R$ using $c_p - c_v = R$.\", \"Multiply $Q = n\\\\,c_p\\\\,\\\\Delta T$, with $\\\\Delta T = T_2 - T_1$ in kelvin.\"]}",
+    "display_json": "{\"type\": \"ordering\", \"type_label\": \"Ordering / sequencing\", \"subtopic_id\": \"f9730d10e52844f4\", \"subtopic_name\": \"Ideal-Gas Specific Heats cv and cp\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Order the steps to find the heat added to $n$ moles of a diatomic ideal gas heated at constant pressure from $T_1$ to $T_2$ (temperatures in kelvin). List the steps in the correct order, first to last.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 4, Enthalpy and Specific Heats\", \"items\": [{\"id\": 2, \"text\": \"Compute $c_p = c_v + R = \\\\tfrac{7}{2}R$ using $c_p - c_v = R$.\"}, {\"id\": 1, \"text\": \"Find $c_v$ for a diatomic ideal gas near room temperature: $c_v = \\\\tfrac{5}{2}R$.\"}, {\"id\": 0, \"text\": \"Recognize that the process is at constant pressure, so the heat added equals the enthalpy change, $Q_p = \\\\Delta H$.\"}, {\"id\": 3, \"text\": \"Multiply $Q = n\\\\,c_p\\\\,\\\\Delta T$, with $\\\\Delta T = T_2 - T_1$ in kelvin.\"}]}",
+    "status": "pool",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:07:45+00:00"
+   },
+   {
+    "id": "17cdfd91d33a4a2d",
+    "session_id": "53edab7a13ee4ca4",
+    "position": null,
+    "slot": 2,
+    "subtopic_id": "364abf4c093b41dc",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 2, \"subtopic_id\": \"364abf4c093b41dc\", \"difficulty\": 3, \"prompt\": \"Two moles of an ideal gas are compressed isothermally at $T = 400$ K from $V_1 = 30$ L to $V_2 = 10$ L. Using the convention $\\\\Delta U = Q - W$, where $W$ is work done by the gas, what is the heat $Q$ exchanged with the surroundings? ($R = 8.314$ J/(mol K))\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3, Work in Ideal-Gas Processes (isothermal row)\", \"explanation\": \"For an isothermal ideal gas $\\\\Delta U = 0$, so $Q = W = nRT\\\\ln(V_2/V_1) = (2)(8.314)(400)\\\\ln(1/3) \\\\approx -7.31$ kJ. The negative sign means 7.31 kJ of heat leaves the gas during the compression.\", \"type\": \"multiple_choice\", \"options\": [\"$Q = 0$ J, because $\\\\Delta U = 0$ means no heat is transferred\", \"$Q \\\\approx -7.31$ kJ: 7.31 kJ of heat is released by the gas\", \"$Q \\\\approx +7.31$ kJ: 7.31 kJ of heat is absorbed by the gas\", \"$Q \\\\approx -4.43$ kJ, from using $(V_2 - V_1)/V_1$ in place of $\\\\ln(V_2/V_1)$\"], \"correct_index\": 1}",
+    "display_json": "{\"type\": \"multiple_choice\", \"type_label\": \"Multiple choice\", \"subtopic_id\": \"364abf4c093b41dc\", \"subtopic_name\": \"Isothermal Ideal-Gas Process\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Two moles of an ideal gas are compressed isothermally at $T = 400$ K from $V_1 = 30$ L to $V_2 = 10$ L. Using the convention $\\\\Delta U = Q - W$, where $W$ is work done by the gas, what is the heat $Q$ exchanged with the surroundings? ($R = 8.314$ J/(mol K))\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3, Work in Ideal-Gas Processes (isothermal row)\", \"options\": [{\"id\": 3, \"text\": \"$Q \\\\approx -4.43$ kJ, from using $(V_2 - V_1)/V_1$ in place of $\\\\ln(V_2/V_1)$\"}, {\"id\": 1, \"text\": \"$Q \\\\approx -7.31$ kJ: 7.31 kJ of heat is released by the gas\"}, {\"id\": 2, \"text\": \"$Q \\\\approx +7.31$ kJ: 7.31 kJ of heat is absorbed by the gas\"}, {\"id\": 0, \"text\": \"$Q = 0$ J, because $\\\\Delta U = 0$ means no heat is transferred\"}]}",
+    "status": "pool",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:08:06+00:00"
+   },
+   {
+    "id": "aab41b4f0041459d",
+    "session_id": "53edab7a13ee4ca4",
+    "position": null,
+    "slot": 3,
+    "subtopic_id": "69ffbf2cef2a486a",
+    "type": "matching",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 3, \"subtopic_id\": \"69ffbf2cef2a486a\", \"difficulty\": 3, \"prompt\": \"Match each adiabatic-process quantity on the left (for an ideal gas with $Q = 0$) to its expression or value on the right.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3 process table (adiabatic row) and Section 4, specific heats\", \"explanation\": \"With $Q = 0$, the work comes entirely from the internal energy drop, giving $W = (P_1V_1 - P_2V_2)/(\\\\gamma - 1) = -\\\\Delta U$. The monatomic value is $\\\\gamma = 5/3$ (from $c_v = 3R/2$, $c_p = 5R/2$), and a diatomic gas near room temperature has $\\\\gamma = 1.4$. The $nRT\\\\ln(V_2/V_1)$ expression is the isothermal work, not the adiabatic one.\", \"type\": \"matching\", \"pairs\": [{\"left\": \"Heat $Q$ transferred during an adiabatic process\", \"right\": \"$0$\"}, {\"left\": \"Work done by the gas in an adiabatic process, in terms of endpoints $P_1, V_1, P_2, V_2$\", \"right\": \"$\\\\dfrac{P_1V_1 - P_2V_2}{\\\\gamma - 1}$\"}, {\"left\": \"$\\\\gamma = c_p/c_v$ for a monatomic ideal gas\", \"right\": \"$\\\\dfrac{5}{3}$\"}, {\"left\": \"$\\\\gamma = c_p/c_v$ for a diatomic ideal gas near room temperature\", \"right\": \"$1.4$\"}], \"distractors\": [\"$nRT\\\\ln(V_2/V_1)$\"]}",
+    "display_json": "{\"type\": \"matching\", \"type_label\": \"Matching\", \"subtopic_id\": \"69ffbf2cef2a486a\", \"subtopic_name\": \"Adiabatic Ideal-Gas Process\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Match each adiabatic-process quantity on the left (for an ideal gas with $Q = 0$) to its expression or value on the right.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3 process table (adiabatic row) and Section 4, specific heats\", \"left\": [\"Heat $Q$ transferred during an adiabatic process\", \"Work done by the gas in an adiabatic process, in terms of endpoints $P_1, V_1, P_2, V_2$\", \"$\\\\gamma = c_p/c_v$ for a monatomic ideal gas\", \"$\\\\gamma = c_p/c_v$ for a diatomic ideal gas near room temperature\"], \"right\": [\"$1.4$\", \"$\\\\dfrac{P_1V_1 - P_2V_2}{\\\\gamma - 1}$\", \"$\\\\dfrac{5}{3}$\", \"$0$\", \"$nRT\\\\ln(V_2/V_1)$\"]}",
+    "status": "pool",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:08:06+00:00"
+   },
+   {
+    "id": "17aacf4d4957417b",
+    "session_id": "53edab7a13ee4ca4",
+    "position": null,
+    "slot": 4,
+    "subtopic_id": "a42a6a60a61e4b13",
+    "type": "true_false",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 4, \"subtopic_id\": \"a42a6a60a61e4b13\", \"difficulty\": 3, \"prompt\": \"Using the convention $\\\\Delta U = Q - W$, where $W$ is work done by the system, a closed system that absorbs 500 J of heat while doing 200 J of work on its surroundings has its internal energy increase by 300 J.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 2, The First Law of Thermodynamics\", \"explanation\": \"Applying $\\\\Delta U = Q - W$ gives $\\\\Delta U = 500 \\\\text{ J} - 200 \\\\text{ J} = +300 \\\\text{ J}$. Heat added increases internal energy, while work done by the system decreases it.\", \"type\": \"true_false\", \"correct\": true}",
+    "display_json": "{\"type\": \"true_false\", \"type_label\": \"True / False\", \"subtopic_id\": \"a42a6a60a61e4b13\", \"subtopic_name\": \"First Law for Closed Systems\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Using the convention $\\\\Delta U = Q - W$, where $W$ is work done by the system, a closed system that absorbs 500 J of heat while doing 200 J of work on its surroundings has its internal energy increase by 300 J.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 2, The First Law of Thermodynamics\"}",
+    "status": "pool",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:08:06+00:00"
+   },
+   {
+    "id": "05b7479fcfa2426b",
+    "session_id": "9ba8f985c9f14618",
+    "position": 0,
+    "slot": 0,
+    "subtopic_id": "da30fec8ba8e4dc8",
+    "type": "select_all",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 0, \"subtopic_id\": \"da30fec8ba8e4dc8\", \"difficulty\": 3, \"prompt\": \"Select all that apply. Consider a gas in a piston-cylinder device that goes from state 1 to state 2. Which of the following statements are correct?\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 1: Systems and State Functions\", \"explanation\": \"The change in internal energy is a state function, so it depends only on the end states. Heat and work are path functions, so their values depend on the process, and a closed system exchanges energy but not mass. A control volume, which exchanges both mass and energy, is an open system, and work is not a state function.\", \"type\": \"select_all\", \"options\": [\"The change in internal energy $\\\\Delta U$ depends only on states 1 and 2, not on the path between them.\", \"Heat $Q$ and work $W$ are path functions, so two different processes between the same two states can give different values of $Q$ and $W$.\", \"A control volume with mass flowing in and out is a closed system.\", \"A closed system can exchange energy with its surroundings but not mass.\", \"Work $W$ is a state function because the gas stores a definite amount of work at each state.\"], \"correct_indices\": [0, 1, 3]}",
+    "display_json": "{\"type\": \"select_all\", \"type_label\": \"Select all that apply\", \"subtopic_id\": \"da30fec8ba8e4dc8\", \"subtopic_name\": \"Systems and State vs Path Functions\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Select all that apply. Consider a gas in a piston-cylinder device that goes from state 1 to state 2. Which of the following statements are correct?\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 1: Systems and State Functions\", \"options\": [{\"id\": 2, \"text\": \"A control volume with mass flowing in and out is a closed system.\"}, {\"id\": 1, \"text\": \"Heat $Q$ and work $W$ are path functions, so two different processes between the same two states can give different values of $Q$ and $W$.\"}, {\"id\": 0, \"text\": \"The change in internal energy $\\\\Delta U$ depends only on states 1 and 2, not on the path between them.\"}, {\"id\": 3, \"text\": \"A closed system can exchange energy with its surroundings but not mass.\"}, {\"id\": 4, \"text\": \"Work $W$ is a state function because the gas stores a definite amount of work at each state.\"}]}",
+    "status": "served",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:07:10+00:00"
+   },
+   {
+    "id": "260229587acc449b",
+    "session_id": "9ba8f985c9f14618",
+    "position": 1,
+    "slot": 1,
+    "subtopic_id": "c215e933e1434ffa",
+    "type": "matching",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 1, \"subtopic_id\": \"c215e933e1434ffa\", \"difficulty\": 3, \"prompt\": \"Match each process (a gas, with pressure and volume values given) to the boundary work $W$ done by the gas. Use $W=\\\\int P\\\\,dV$, with $1\\\\text{ L}=10^{-3}\\\\text{ m}^3$ and $1\\\\text{ kPa}=1000\\\\text{ Pa}$.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3: Work in Ideal-Gas Processes (isobaric and isochoric rows of the table)\", \"explanation\": \"For isobaric processes, $W=P(V_2-V_1)$; for example, $200\\\\text{ kPa}\\\\times 0.010\\\\text{ m}^3=2000\\\\text{ J}$. For isochoric processes $\\\\Delta V=0$, so $W=0$ regardless of the pressure change. A compression gives negative work done by the gas, so $100\\\\text{ kPa}\\\\times(-0.010\\\\text{ m}^3)=-1000\\\\text{ J}$.\", \"type\": \"matching\", \"pairs\": [{\"left\": \"Isobaric expansion at 200 kPa, with V going from 5 L to 15 L\", \"right\": \"2000 J\"}, {\"left\": \"Isochoric process at V = 8 L, with pressure falling from 300 kPa to 100 kPa\", \"right\": \"0 J\"}, {\"left\": \"Isobaric compression at 100 kPa, with V going from 20 L to 10 L\", \"right\": \"-1000 J\"}, {\"left\": \"Isobaric expansion at 50 kPa, with V going from 1 L to 5 L\", \"right\": \"200 J\"}], \"distractors\": [\"-2000 J\", \"3000 J\"]}",
+    "display_json": "{\"type\": \"matching\", \"type_label\": \"Matching\", \"subtopic_id\": \"c215e933e1434ffa\", \"subtopic_name\": \"Boundary Work: Isobaric and Isochoric\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Match each process (a gas, with pressure and volume values given) to the boundary work $W$ done by the gas. Use $W=\\\\int P\\\\,dV$, with $1\\\\text{ L}=10^{-3}\\\\text{ m}^3$ and $1\\\\text{ kPa}=1000\\\\text{ Pa}$.\", \"uses_outside_knowledge\": false, \"source_hint\": \"Section 3: Work in Ideal-Gas Processes (isobaric and isochoric rows of the table)\", \"left\": [\"Isobaric expansion at 200 kPa, with V going from 5 L to 15 L\", \"Isochoric process at V = 8 L, with pressure falling from 300 kPa to 100 kPa\", \"Isobaric compression at 100 kPa, with V going from 20 L to 10 L\", \"Isobaric expansion at 50 kPa, with V going from 1 L to 5 L\"], \"right\": [\"0 J\", \"-2000 J\", \"200 J\", \"3000 J\", \"2000 J\", \"-1000 J\"]}",
+    "status": "served",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:07:10+00:00"
+   },
+   {
+    "id": "cad8fbff7fb44bc3",
+    "session_id": "9ba8f985c9f14618",
+    "position": 2,
+    "slot": 2,
+    "subtopic_id": "1bc5f0e9e0fb421d",
+    "type": "true_false",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 2, \"subtopic_id\": \"1bc5f0e9e0fb421d\", \"difficulty\": 3, \"prompt\": \"For one mole of a monatomic ideal gas, the enthalpy change for a temperature change $\\\\Delta T$ is $\\\\Delta H = n c_v \\\\Delta T$ (with $c_v = \\\\tfrac{3}{2}R$).\", \"uses_outside_knowledge\": false, \"source_hint\": \"4. Enthalpy and Specific Heats\", \"explanation\": \"For an ideal gas, $\\\\Delta H = n c_p \\\\Delta T$, not $n c_v \\\\Delta T$. The $c_v$ form gives $\\\\Delta U$, so this statement is false.\", \"type\": \"true_false\", \"correct\": false}",
+    "display_json": "{\"type\": \"true_false\", \"type_label\": \"True / False\", \"subtopic_id\": \"1bc5f0e9e0fb421d\", \"subtopic_name\": \"Ideal-Gas Specific Heats cv and cp\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"For one mole of a monatomic ideal gas, the enthalpy change for a temperature change $\\\\Delta T$ is $\\\\Delta H = n c_v \\\\Delta T$ (with $c_v = \\\\tfrac{3}{2}R$).\", \"uses_outside_knowledge\": false, \"source_hint\": \"4. Enthalpy and Specific Heats\"}",
+    "status": "served",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:07:25+00:00"
+   },
+   {
+    "id": "d0725ea1b32a4d22",
+    "session_id": "9ba8f985c9f14618",
+    "position": 3,
+    "slot": 3,
+    "subtopic_id": "108fdedfd4db492a",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 3, \"subtopic_id\": \"108fdedfd4db492a\", \"difficulty\": 3, \"prompt\": \"Two moles of an ideal gas expand isothermally at $T = 400$ K from $V_1 = 5$ L to $V_2 = 15$ L. Using $R = 8.314$ J/(mol K), how much work does the gas do, and how much heat does it absorb?\", \"uses_outside_knowledge\": false, \"source_hint\": \"3. Work in Ideal-Gas Processes (isothermal row)\", \"explanation\": \"For an isothermal ideal gas, $\\\\Delta U = 0$ and $W = nRT\\\\ln(V_2/V_1) = (2)(8.314)(400)\\\\ln 3 \\\\approx 7.31$ kJ, so $Q = W \\\\approx 7.31$ kJ. The other options come from dropping the logarithm, using the volume difference, or using Celsius instead of kelvin.\", \"type\": \"multiple_choice\", \"options\": [\"6.65 kJ\", \"7.31 kJ\", \"12.3 kJ\", \"15.3 kJ\"], \"correct_index\": 1}",
+    "display_json": "{\"type\": \"multiple_choice\", \"type_label\": \"Multiple choice\", \"subtopic_id\": \"108fdedfd4db492a\", \"subtopic_name\": \"Isothermal Ideal-Gas Process\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Two moles of an ideal gas expand isothermally at $T = 400$ K from $V_1 = 5$ L to $V_2 = 15$ L. Using $R = 8.314$ J/(mol K), how much work does the gas do, and how much heat does it absorb?\", \"uses_outside_knowledge\": false, \"source_hint\": \"3. Work in Ideal-Gas Processes (isothermal row)\", \"options\": [{\"id\": 1, \"text\": \"7.31 kJ\"}, {\"id\": 2, \"text\": \"12.3 kJ\"}, {\"id\": 3, \"text\": \"15.3 kJ\"}, {\"id\": 0, \"text\": \"6.65 kJ\"}]}",
+    "status": "served",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:07:25+00:00"
+   },
+   {
+    "id": "d75568efd5bf4c64",
+    "session_id": "9ba8f985c9f14618",
+    "position": 4,
+    "slot": 4,
+    "subtopic_id": "5704fb0593ec4fdf",
+    "type": "ordering",
+    "difficulty": 3,
+    "payload_json": "{\"slot\": 4, \"subtopic_id\": \"5704fb0593ec4fdf\", \"difficulty\": 3, \"prompt\": \"Put the steps in the correct order to show that heat added at constant pressure equals the enthalpy change, $Q_p = \\\\Delta H$, for a closed system.\", \"uses_outside_knowledge\": false, \"source_hint\": \"2. The First Law of Thermodynamics and 4. Enthalpy and Specific Heats\", \"explanation\": \"Start from the first law in the material's convention, $\\\\Delta U = Q - W$. Use the constant-pressure work $W = P(V_2 - V_1)$, substitute and regroup into $(U + PV)$ terms, and then recognize $H = U + PV$ so that $Q_p = \\\\Delta H$.\", \"type\": \"ordering\", \"items\": [\"Start from the first law in the material's convention: $\\\\Delta U = Q - W$, so $Q = \\\\Delta U + W$.\", \"At constant pressure, the boundary work is $W = P(V_2 - V_1)$.\", \"Substitute: $Q = (U_2 - U_1) + P(V_2 - V_1) = (U_2 + PV_2) - (U_1 + PV_1)$.\", \"Recognize $H = U + PV$, so the heat added at constant pressure is $Q_p = \\\\Delta H$.\"]}",
+    "display_json": "{\"type\": \"ordering\", \"type_label\": \"Ordering / sequencing\", \"subtopic_id\": \"5704fb0593ec4fdf\", \"subtopic_name\": \"Enthalpy and Constant-Pressure Heat\", \"difficulty\": 3, \"difficulty_label\": \"Exam-level\", \"prompt\": \"Put the steps in the correct order to show that heat added at constant pressure equals the enthalpy change, $Q_p = \\\\Delta H$, for a closed system.\", \"uses_outside_knowledge\": false, \"source_hint\": \"2. The First Law of Thermodynamics and 4. Enthalpy and Specific Heats\", \"items\": [{\"id\": 3, \"text\": \"Recognize $H = U + PV$, so the heat added at constant pressure is $Q_p = \\\\Delta H$.\"}, {\"id\": 2, \"text\": \"Substitute: $Q = (U_2 - U_1) + P(V_2 - V_1) = (U_2 + PV_2) - (U_1 + PV_1)$.\"}, {\"id\": 0, \"text\": \"Start from the first law in the material's convention: $\\\\Delta U = Q - W$, so $Q = \\\\Delta U + W$.\"}, {\"id\": 1, \"text\": \"At constant pressure, the boundary work is $W = P(V_2 - V_1)$.\"}]}",
+    "status": "served",
+    "deferred_count": 0,
+    "created_at": "2026-11-03T02:07:25+00:00"
+   }
+  ],
+  "answers": [
+   {
+    "question_id": "05b7479fcfa2426b",
+    "session_id": "9ba8f985c9f14618",
+    "response_json": "{\"choices\": [0, 1, 3]}",
+    "confidence": "medium",
+    "skipped": 0,
+    "answered_at": "2026-11-03T02:07:12+00:00",
+    "grade_status": "done",
+    "score": 100.0,
+    "verdict": "correct",
+    "feedback": "Correct: you selected every right option and nothing else.",
+    "model_answer": "- The change in internal energy $\\Delta U$ depends only on states 1 and 2, not on the path between them.\n- Heat $Q$ and work $W$ are path functions, so two different processes between the same two states can give different values of $Q$ and $W$.\n- A closed system can exchange energy with its surroundings but not mass.",
+    "misconception": "",
+    "details_json": "{\"hits\": 3, \"wrong\": 0, \"missed\": 0}",
+    "graded_by": "local",
+    "grade_error": null
+   },
+   {
+    "question_id": "260229587acc449b",
+    "session_id": "9ba8f985c9f14618",
+    "response_json": "{\"matches\": [0, 5, 2, 4]}",
+    "confidence": "medium",
+    "skipped": 0,
+    "answered_at": "2026-11-03T02:07:12+00:00",
+    "grade_status": "done",
+    "score": 0.0,
+    "verdict": "incorrect",
+    "feedback": "0 of 4 pairs matched correctly.",
+    "model_answer": "- Isobaric expansion at 200 kPa, with V going from 5 L to 15 L → 2000 J\n- Isochoric process at V = 8 L, with pressure falling from 300 kPa to 100 kPa → 0 J\n- Isobaric compression at 100 kPa, with V going from 20 L to 10 L → -1000 J\n- Isobaric expansion at 50 kPa, with V going from 1 L to 5 L → 200 J",
+    "misconception": "",
+    "details_json": "{\"correct_pairs\": 0, \"total\": 4}",
+    "graded_by": "local",
+    "grade_error": null
+   },
+   {
+    "question_id": "cad8fbff7fb44bc3",
+    "session_id": "9ba8f985c9f14618",
+    "response_json": "{\"value\": false}",
+    "confidence": "medium",
+    "skipped": 0,
+    "answered_at": "2026-11-03T02:07:26+00:00",
+    "grade_status": "done",
+    "score": 100.0,
+    "verdict": "correct",
+    "feedback": "",
+    "model_answer": "False",
+    "misconception": "",
+    "details_json": "{}",
+    "graded_by": "local",
+    "grade_error": null
+   },
+   {
+    "question_id": "d0725ea1b32a4d22",
+    "session_id": "9ba8f985c9f14618",
+    "response_json": "{\"choice\": 2}",
+    "confidence": "medium",
+    "skipped": 0,
+    "answered_at": "2026-11-03T02:07:27+00:00",
+    "grade_status": "done",
+    "score": 0.0,
+    "verdict": "incorrect",
+    "feedback": "",
+    "model_answer": "7.31 kJ",
+    "misconception": "",
+    "details_json": "{}",
+    "graded_by": "local",
+    "grade_error": null
+   },
+   {
+    "question_id": "d75568efd5bf4c64",
+    "session_id": "9ba8f985c9f14618",
+    "response_json": "{\"order\": [0, 1, 2, 3]}",
+    "confidence": "medium",
+    "skipped": 0,
+    "answered_at": "2026-11-03T02:07:27+00:00",
+    "grade_status": "done",
+    "score": 100.0,
+    "verdict": "correct",
+    "feedback": "Correct order.",
+    "model_answer": "1. Start from the first law in the material's convention: $\\Delta U = Q - W$, so $Q = \\Delta U + W$.\n2. At constant pressure, the boundary work is $W = P(V_2 - V_1)$.\n3. Substitute: $Q = (U_2 - U_1) + P(V_2 - V_1) = (U_2 + PV_2) - (U_1 + PV_1)$.\n4. Recognize $H = U + PV$, so the heat added at constant pressure is $Q_p = \\Delta H$.",
+    "misconception": "",
+    "details_json": "{}",
+    "graded_by": "local",
+    "grade_error": null
+   }
+  ],
+  "playlist_items": [
+   {
+    "id": "98ce834eefa54e5a",
+    "playlist_id": "216555a1977d467c",
+    "set_subtopic_id": "a3858dd6440545c3",
+    "video_id": "3zCWXRiwqoY",
+    "title": "Work and Heat are Path Functions | Work is a path function.",
+    "channel": "Learning Science",
+    "duration_s": 322,
+    "thumbnail": "https://i.ytimg.com/vi/3zCWXRiwqoY/mqdefault.jpg",
+    "reason": "Directly contrasts heat and work as path functions, the core distinction for this target.",
+    "watched": 0,
+    "position": 0,
+    "status": "active",
+    "created_at": "2026-11-03T02:06:54+00:00"
+   },
+   {
+    "id": "039a07408c0843f5",
+    "playlist_id": "216555a1977d467c",
+    "set_subtopic_id": "a3858dd6440545c3",
+    "video_id": "_uBvYu2wpMs",
+    "title": "Internal Energy is a State Function, Work & Heat are Path Functions. why?",
+    "channel": "DMG CHEMISTRY CLASSES By: Dr. Mohinder Guleria",
+    "duration_s": 883,
+    "thumbnail": "https://i.ytimg.com/vi/_uBvYu2wpMs/mqdefault.jpg",
+    "reason": "Explains why internal energy is a state function while work and heat are path functions.",
+    "watched": 0,
+    "position": 1,
+    "status": "active",
+    "created_at": "2026-11-03T02:06:54+00:00"
+   },
+   {
+    "id": "516679f0de88415a",
+    "playlist_id": "216555a1977d467c",
+    "set_subtopic_id": "a3858dd6440545c3",
+    "video_id": "BBoXymJYkXk",
+    "title": "State Function vs Path Function | Thermodynamics Class 11 Chemistry (CBSE/NIOS)",
+    "channel": "Brainleague Learning",
+    "duration_s": 191,
+    "thumbnail": "https://i.ytimg.com/vi/BBoXymJYkXk/mqdefault.jpg",
+    "reason": "Short, focused comparison of state and path functions, though it may not cover open and closed systems.",
+    "watched": 0,
+    "position": 2,
+    "status": "active",
+    "created_at": "2026-11-03T02:06:54+00:00"
+   },
+   {
+    "id": "32fc745fc56940e1",
+    "playlist_id": "216555a1977d467c",
+    "set_subtopic_id": "a3f9f20b4cc049b6",
+    "video_id": "w1-Mni_5P-U",
+    "title": "The first law of Thermodynamics for closed systems | Mechanical Engineering Thermodynamics",
+    "channel": "Adriaan Van Niekerk",
+    "duration_s": 463,
+    "thumbnail": "https://i.ytimg.com/vi/w1-Mni_5P-U/mqdefault.jpg",
+    "reason": "Focused on the first law applied to closed systems, matching the target's scope.",
+    "watched": 0,
+    "position": 13,
+    "status": "active",
+    "created_at": "2026-11-03T02:06:54+00:00"
+   },
+   {
+    "id": "7469164709774517",
+    "playlist_id": "216555a1977d467c",
+    "set_subtopic_id": "a3f9f20b4cc049b6",
+    "video_id": "mzyHWvw1Oe0",
+    "title": "Thermodynamics: 1st Law for Closed Systems (8 of 25)",
+    "channel": "CPPMechEngTutorials",
+    "duration_s": 3975,
+    "thumbnail": "https://i.ytimg.com/vi/mzyHWvw1Oe0/mqdefault.jpg",
+    "reason": "Covers the closed-system first law, though it is part of a longer series and may state its sign convention differently.",
+    "watched": 0,
+    "position": 14,
+    "status": "active",
+    "created_at": "2026-11-03T02:06:54+00:00"
+   },
+   {
+    "id": "d2f5a06fa9e044bf",
+    "playlist_id": "216555a1977d467c",
+    "set_subtopic_id": "a3f9f20b4cc049b6",
+    "video_id": "COuWZTMj-8o",
+    "title": "First Law Of Thermodynamics For A Closed System Undergoing A Change Of State",
+    "channel": "BEST MECHANICAL ENGINEERING",
+    "duration_s": 718,
+    "thumbnail": "https://i.ytimg.com/vi/COuWZTMj-8o/mqdefault.jpg",
+    "reason": "Applies the closed-system first law to a change of state, showing energy balance in a process.",
+    "watched": 0,
+    "position": 15,
+    "status": "active",
+    "created_at": "2026-11-03T02:06:54+00:00"
+   }
+  ],
+  "uploads": [
+   {
+    "id": "5b8fb9c1a580428d",
+    "filename": "thermo-first-law.pdf",
+    "kind": "text",
+    "source_type": "pdf",
+    "media_type": "text/plain",
+    "size": 3931,
+    "path": "uploads/5b8fb9c1a580428d/extracted.txt",
+    "char_count": 3072,
+    "created_at": "2026-11-03T02:05:12+00:00",
+    "sha256": "a1a55410e172a58b5c2fffb5ec8d0951517b6467f7f3d30dcca764cc44819be7"
+   }
+  ]
+ }
+}

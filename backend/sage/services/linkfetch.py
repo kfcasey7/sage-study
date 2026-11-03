@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
 
+import httpcore
 import httpx
 
 from .. import config
@@ -113,8 +114,21 @@ def dedupe_key(url: str) -> str:
 
 # --- Fetching ---------------------------------------------------------------------------------
 
+LOCAL_ONLY = "Links to this computer or your local network can't be added."
+
+
+def _not_public(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Everything except the public internet: loopback, private, link-local, carrier-grade NAT, reserved, ..."""
+    addr = getattr(addr, "ipv4_mapped", None) or addr
+    return not addr.is_global or addr.is_multicast
+
+
+def resolve(host: str) -> list[str]:
+    return list(dict.fromkeys(info[4][0].split("%")[0] for info in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)))
+
+
 def _is_private_host(host: str) -> bool:
-    """True for localhost and private/link-local/reserved addresses (literal or resolved)."""
+    """True for localhost and anything that isn't a public address (literal or resolved)."""
     host = host.strip("[]").lower()
     if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
         return True
@@ -122,17 +136,53 @@ def _is_private_host(host: str) -> bool:
         addrs = [ipaddress.ip_address(host)]
     except ValueError:
         try:
-            addrs = [ipaddress.ip_address(info[4][0].split("%")[0]) for info in socket.getaddrinfo(host, None)]
+            addrs = [ipaddress.ip_address(a) for a in resolve(host)]
         except (socket.gaierror, UnicodeError, ValueError):
             return False  # unresolvable: the request itself will fail with a clear message
-    return any(a.is_private or a.is_loopback or a.is_link_local or a.is_reserved or a.is_multicast or a.is_unspecified
-               for a in addrs)
+    return any(_not_public(a) for a in addrs)
+
+
+class PublicOnlyBackend(httpcore.AsyncNetworkBackend):
+    """Connects only to the public address it just checked. A name can't pass the check and then resolve
+    to this computer on the real connection (DNS rebinding), because no second lookup ever happens."""
+
+    def __init__(self, inner: httpcore.AsyncNetworkBackend):
+        self._inner = inner
+
+    async def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        try:
+            addrs = await asyncio.to_thread(resolve, host)
+        except (socket.gaierror, UnicodeError) as e:
+            raise httpcore.ConnectError(str(e)) from e
+        if any(_not_public(ipaddress.ip_address(a)) for a in addrs):
+            raise LinkError(LOCAL_ONLY)
+        error: Exception | None = None
+        for addr in addrs:
+            try:
+                return await self._inner.connect_tcp(addr, port, timeout=timeout, local_address=local_address,
+                                                     socket_options=socket_options)
+            except (httpcore.ConnectError, httpcore.ConnectTimeout) as e:
+                error = e
+        raise error or httpcore.ConnectError(f"no addresses for {host}")
+
+    async def connect_unix_socket(self, path, timeout=None, socket_options=None):
+        raise LinkError(LOCAL_ONLY)
+
+    async def sleep(self, seconds):
+        await self._inner.sleep(seconds)
+
+
+def public_transport() -> httpx.AsyncHTTPTransport:
+    transport = httpx.AsyncHTTPTransport()
+    pool = transport._pool
+    pool._network_backend = PublicOnlyBackend(pool._network_backend)  # httpx has no public hook for this
+    return transport
 
 
 async def _guard(request: httpx.Request) -> None:
     host = request.url.host
     if await asyncio.to_thread(is_private_host, host):
-        raise LinkError("Links to this computer or your local network can't be added.")
+        raise LinkError(LOCAL_ONLY)
 
 
 is_private_host: Callable[[str], bool] = _is_private_host  # replaced in tests
@@ -143,7 +193,7 @@ def make_client(user_agent: str | None = None, transport: httpx.AsyncBaseTranspo
         headers={"User-Agent": user_agent or config.LINK_USER_AGENT, "Accept-Language": "en-US,en;q=0.9",
                  "Accept": "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8"},
         timeout=config.LINK_TIMEOUT, follow_redirects=True, max_redirects=config.LINK_MAX_REDIRECTS,
-        event_hooks={"request": [_guard]}, transport=transport,
+        event_hooks={"request": [_guard]}, transport=transport or public_transport(),
     )
 
 

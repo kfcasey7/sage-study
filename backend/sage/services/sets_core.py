@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from pathlib import Path
 from typing import Any
 
 from .. import config, db, ingest
@@ -82,7 +81,7 @@ def set_context(st: dict[str, Any], settings: dict[str, Any] | None = None) -> C
     if material is None:
         material = ingest.Material()
         for label, u in ready_uploads(st["id"]):
-            path = Path(u["path"])
+            path = config.data_path(u["path"])
             if not path.exists():
                 continue  # a missing stored copy just drops out of the material
             title = f"[{label}] {u['filename']}"

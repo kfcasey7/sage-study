@@ -10,7 +10,8 @@ export default defineConfig({
     proxy: { "/api": { target: "http://127.0.0.1:8765", changeOrigin: true } },
   },
   build: {
-    outDir: "dist",
+    outDir: "../backend/sage/web",
+    emptyOutDir: true,
     chunkSizeWarningLimit: 6000,
     target: "es2021",
   },

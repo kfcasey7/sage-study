@@ -80,19 +80,47 @@ def child_env() -> dict[str, str]:
     }
 
 
+def _prefer_native(path: str) -> str:
+    """npm's claude.cmd runs through cmd.exe, which mangles JSON arguments and cuts long command lines; the
+    package holds the real binary next to it."""
+    if path.lower().endswith(".cmd"):
+        native = Path(path).parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+        if native.is_file():
+            return str(native)
+    return path
+
+
+def _from_login_shell() -> str | None:
+    """Apps opened from the macOS Finder or a Linux menu get a minimal PATH; the user's shell knows better."""
+    shell = os.environ.get("SHELL")
+    if sys.platform == "win32" or not shell:
+        return None
+    try:
+        out = subprocess.run([shell, "-lc", "command -v claude"], capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    last = out.splitlines()[-1] if out else ""
+    return last if last.startswith("/") and Path(last).is_file() else None
+
+
 def find_cli() -> str | None:
     found = shutil.which("claude")
     if found:
-        return found
+        return _prefer_native(found)
     home = Path.home()
+    exe = "claude.exe" if sys.platform == "win32" else "claude"
     candidates = [
-        home / ".local" / "bin" / ("claude.exe" if sys.platform == "win32" else "claude"),
-        home / ".claude" / "local" / ("claude.exe" if sys.platform == "win32" else "claude"),
+        home / ".local" / "bin" / exe,
+        home / ".claude" / "local" / exe,
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WinGet" / "Links" / exe,
         Path(os.environ.get("APPDATA", "")) / "npm" / "claude.cmd",
+        home / ".npm-global" / "bin" / exe,
         Path("/usr/local/bin/claude"),
         Path("/opt/homebrew/bin/claude"),
+        Path("/usr/bin/claude"),
     ]
-    return next((str(c) for c in candidates if c.is_file()), None)
+    found = next((str(c) for c in candidates if c.is_file()), None)
+    return _prefer_native(found) if found else _from_login_shell()
 
 
 # --- Subprocess -------------------------------------------------------------------------------
@@ -122,8 +150,8 @@ async def _invoke(args: list[str], stdin_text: str, cwd: Path, timeout: float) -
 def cli_missing_error() -> AppError:
     return AppError(
         "cli_missing",
-        "Claude Code isn't installed or isn't on your PATH. Install it from https://claude.com/claude-code, then run "
-        "`claude` once in a terminal and log in with your Claude account.",
+        f"Claude Code isn't installed, or this app can't find it. Follow Anthropic's install instructions at "
+        f"{config.CLAUDE_CODE_DOCS_URL}, then run `claude` once in a terminal and sign in with your Claude account.",
     )
 
 
@@ -185,6 +213,8 @@ _USAGE = re.compile(r"usage limit|limit reached|hit your (?:usage |session |week
 _LOGIN = re.compile(r"not logged in|please (?:run )?/login|run `?claude`? (?:to|and) log ?in|log ?in (?:again|required)|"
                     r"invalid api key|authentication|unauthori[sz]ed|oauth token|credentials|\b401\b", re.I)
 _OVERLOADED = re.compile(r"overloaded|\b529\b", re.I)
+_NETWORK = re.compile(r"ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|getaddrinfo|network (?:error|is unreachable)|"
+                      r"connection (?:error|refused|timed out)|fetch failed|unable to connect|could not resolve", re.I)
 _RESET_EPOCH = re.compile(r"\|(\d{10})\b")
 _RESET_TEXT = re.compile(r"resets? (?:at |on )?([0-9]{1,2}(?::[0-9]{2})?\s*(?:[ap]\.?m\.?)?(?:\s*\([^)]*\))?)", re.I)
 
@@ -205,6 +235,8 @@ def classify(text: str, status: Any = None) -> AppError | None:
                         "Claude account (type /login if it doesn't prompt you).", detail=text[:300])
     if _OVERLOADED.search(blob):
         return AppError("overloaded", "Claude is temporarily overloaded. Try again in a moment.", detail=text[:300])
+    if _NETWORK.search(blob):
+        return AppError("network", "Claude Code couldn't reach the internet. Check your connection and try again.", detail=text[:300])
     return None
 
 
@@ -437,7 +469,7 @@ async def cli_status(refresh: bool = False) -> dict[str, Any]:
                                      "with your Claude account.")
             elif status["auth_method"] not in ("claude.ai", "oauth", "subscription", None):
                 status["message"] = (f"Claude Code is logged in with '{status['auth_method']}', not a Claude subscription. "
-                                     "Run `claude auth login` to switch to your Pro account.")
+                                     "Run `claude auth login` to switch to your Claude account.")
         except AppError as e:
             status["message"] = e.message
         except (json.JSONDecodeError, OSError) as e:

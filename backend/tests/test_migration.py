@@ -95,10 +95,14 @@ def test_sessions_get_study_sets(old_db):
     assert len(g) == 1 and g[0]["session_id"] == "A" and g[0]["set_id"] == a_set and g[0]["kind"] == "weak_areas"
     assert json.loads(g[0]["subtopic_ids_json"]) == ["a2"]
     assert db.query_one("SELECT deferred_count FROM questions WHERE id = 'q1'")["deferred_count"] == 0
-    assert db.query_one("PRAGMA user_version")["user_version"] == 1
+    assert db.query_one("PRAGMA user_version")["user_version"] == 2
+    # Upload paths are now relative to the data folder and still lead to the file.
+    stored = db.query_one("SELECT path FROM uploads WHERE id = 'u1'")["path"]
+    assert stored == "uploads/u1/extracted.txt"
+    assert config.data_path(stored).read_text(encoding="utf-8").startswith("[Page 1]")
 
     # A backup was made before migrating.
-    backup = path.with_name(path.name + ".bak-v1")
+    backup = path.with_name(path.name + ".bak-v2")
     assert backup.exists()
     b = sqlite3.connect(backup)
     assert b.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 3
@@ -126,3 +130,35 @@ def test_migrated_sessions_still_open(old_db, client):
     view = client.get(f"/api/sets/{sets[0]['id'] if sets[0]['title'] == 'Heat Engines' else sets[1]['id']}").json()
     assert view["breakdown"]["status"] == "legacy" and [s["name"] for s in view["subtopics"]] == ["Carnot cycle", "Entropy", "Otto cycle"]
     assert len(view["quizzes"]) == 2 and len(view["guides"]) == 1
+
+
+def test_v1_database_moves_to_relative_paths_keeping_a_backup(old_db, monkeypatch):
+    path, _ = old_db
+    db.init_db()  # now current; rewind to v1 with a Windows-style absolute path from another computer
+    conn = sqlite3.connect(path)
+    conn.execute("UPDATE uploads SET path = ? WHERE id = 'u1'", (r"C:\Users\someone\AppData\Local\SageStudy\uploads\u1\extracted.txt",))
+    conn.execute("PRAGMA user_version = 1")
+    conn.commit()
+    conn.close()
+    path.with_name(path.name + ".bak-v2").unlink()
+    monkeypatch.setattr(db, "_initialized_path", None)
+    db.init_db()
+    assert path.with_name(path.name + ".bak-v2").exists()
+    assert db.query_one("SELECT path FROM uploads WHERE id = 'u1'")["path"] == "uploads/u1/extracted.txt"
+    assert db.query_one("SELECT COUNT(*) AS n FROM sessions")["n"] == 3
+
+
+def test_database_from_a_newer_version_is_refused_untouched(old_db, monkeypatch):
+    from sage.errors import AppError
+
+    path, _ = old_db
+    db.init_db()
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA user_version = 99")
+    conn.commit()
+    conn.close()
+    before = path.read_bytes()
+    monkeypatch.setattr(db, "_initialized_path", None)
+    with pytest.raises(AppError, match="newer version"):
+        db.init_db()
+    assert path.read_bytes() == before

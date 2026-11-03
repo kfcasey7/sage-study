@@ -12,7 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "assets" / "icon"
+OUT = ROOT / "backend" / "sage" / "assets" / "icon"
 SIZE = 1024
 SS = 4  # supersampling factor for smooth edges
 
@@ -103,7 +103,7 @@ def main() -> None:
     public = ROOT / "frontend" / "public"
     public.mkdir(parents=True, exist_ok=True)
     icon.resize((128, 128), Image.LANCZOS).save(public / "icon.png")
-    dist = ROOT / "frontend" / "dist"
+    dist = ROOT / "backend" / "sage" / "web"
     if dist.exists():
         shutil.copy(public / "icon.png", dist / "icon.png")
     print(f"Icons written to {OUT}")

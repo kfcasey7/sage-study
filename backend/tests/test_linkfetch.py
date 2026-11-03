@@ -9,11 +9,13 @@ import pytest
 from sage.services import linkfetch as L
 
 from .test_ingest import text_pdf
+from .web_mock import ARTICLE
 
 
 def tiny_pdf(text: str) -> bytes:
     return text_pdf([(text + ". ") * 40])
-from .web_mock import ARTICLE
+
+
 
 
 def fetch(url: str, **kw):
@@ -169,12 +171,12 @@ def test_bad_links(raw):
 
 
 def test_math_is_kept_as_latex():
-    html = """<html><head><title>Energy</title></head><body><article><p>The first law is
+    html = r"""<html><head><title>Energy</title></head><body><article><p>The first law is
 <span class="mwe-math-element"><span style="display:none"><math alttext="{\displaystyle \Delta U=Q-W}"><mi>U</mi></math></span>
 <img alt="{\displaystyle \Delta U=Q-W}" src="x.svg"></span> for a closed system.<sup>[3]</sup></p>
 <p>KaTeX: <span class="katex"><span class="katex-mathml"><math><semantics><annotation encoding="application/x-tex">H = U + PV</annotation></semantics></math></span><span class="katex-html">H=U+PV</span></span>.</p>
 <p>MathJax: <script type="math/tex">\eta = 1 - T_c/T_h</script>.</p>
 """ + "<p>" + "Padding text about thermodynamics. " * 20 + "</p></article></body></html>"
     title, text = L.extract_html(html, "https://example.com/e")
-    assert "$\Delta U=Q-W$" in text and "$H = U + PV$" in text and "$\eta = 1 - T_c/T_h$" in text
+    assert r"$\Delta U=Q-W$" in text and "$H = U + PV$" in text and r"$\eta = 1 - T_c/T_h$" in text
     assert "[3]" not in text and text.count("Delta U") == 1

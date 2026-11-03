@@ -1,7 +1,7 @@
 import type {
-  AnswerView, ApiErrorBody, ChatView, CliStatus, Confidence, HistoryRow, NextResponse, PlaylistView, QuestionVideos, Results,
+  AnswerView, ApiErrorBody, ChatView, CliStatus, Confidence, Diagnostics, HistoryRow, NextResponse, PlaylistView, QuestionVideos, Results,
   SessionOptions, SessionView, SettingsPayload, SourceView, StudyGuide, StudySection, StudySetRow, StudySetView, Trends,
-  UploadInfo, YoutubeKeyStatus,
+  UpdateState, UploadInfo, YoutubeKeyStatus,
 } from "./types";
 
 export class ApiError extends Error {
@@ -62,6 +62,12 @@ export const api = {
   settings: () => get<SettingsPayload>("/api/settings"),
   updateSettings: (s: Partial<SettingsPayload["settings"]>) => put<SettingsPayload>("/api/settings", s),
   cliStatus: (refresh = false) => get<CliStatus>(`/api/settings/cli-status${refresh ? "?refresh=true" : ""}`),
+  diagnostics: () => get<Diagnostics>("/api/diagnostics"),
+  updates: (force = false) => get<UpdateState>(`/api/updates${force ? "?force=true" : ""}`),
+  applyUpdate: () => post<{ action: "updating" | "opened_download_page" | "manual"; command?: string; url?: string }>("/api/updates/apply"),
+  loadDemo: () => post<{ id: string }>("/api/demo"),
+  heartbeat: () => post<{ ok: boolean }>("/api/_heartbeat"),
+  quit: () => post<{ ok: boolean }>("/api/_quit"),
 
   upload: (file: File) => {
     const fd = new FormData();

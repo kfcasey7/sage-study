@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, distribution]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the whole history, not just the latest commit
+      - name: Scan with gitleaks
+        run: |
+          curl -fsSL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz | tar -xz gitleaks
+          ./gitleaks git --config .gitleaks.toml --log-opts="--all" --redact --no-banner .
+
+  frontend:
+    name: Frontend (typecheck and build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: The committed UI matches the source
+        run: python scripts/build_frontend.py --check
+      - name: Typecheck and build
+        run: python scripts/build_frontend.py
+
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+      - name: Install
+        run: uv sync --python 3.13 --group dev
+      - name: Lint
+        run: uv run --no-sync ruff check backend scripts
+      - name: Tests
+        run: uv run --no-sync pytest -q
+
+  install-smoke:
+    name: Install smoke test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install, smoke test, repair, and uninstall in a clean temporary environment
+        run: python scripts/smoke_install.py

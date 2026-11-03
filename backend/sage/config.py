@@ -6,24 +6,42 @@ from pathlib import Path
 
 from platformdirs import user_data_dir
 
+from . import __version__
+
 APP_NAME = "Sage Study"
 APP_ID = "SageStudy"
-VERSION = "1.0.0"
+VERSION = __version__
+GITHUB_REPO = "kfcasey7/sage-study"
+REPO_URL = f"https://github.com/{GITHUB_REPO}"
+CLAUDE_CODE_DOCS_URL = "https://code.claude.com/docs/en/setup"  # Anthropic's current install instructions
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
-ICON_DIR = ROOT_DIR / "assets" / "icon"
+PACKAGE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST = PACKAGE_DIR / "web"
+ICON_DIR = PACKAGE_DIR / "assets" / "icon"
+DEMO_DIR = PACKAGE_DIR / "demo"
 
-# SAGE_DATA_DIR lets tests (and power users) relocate all app data.
+# --data-dir (or SAGE_DATA_DIR) relocates all app data; the app never writes next to its own code.
 DATA_DIR = Path(os.environ.get("SAGE_DATA_DIR") or user_data_dir(APP_ID, appauthor=False))
 DB_PATH = DATA_DIR / "sage.db"
 UPLOAD_DIR = DATA_DIR / "uploads"
 LOCK_FILE = DATA_DIR / "instance.lock"
 LOG_FILE = DATA_DIR / "sage.log"
 
-PREFERRED_PORT = 8765
+DEV_PORT = 8765  # `python -m sage.dev` only; the app itself takes a free port at launch
 
 LLM_TMP_DIR = DATA_DIR / "llm_tmp"  # per-call folders of uploaded files the CLI may read
+
+
+def data_path(stored: str) -> Path:
+    """Where a path stored in the database points. Stored paths are relative to the data folder, so it can move."""
+    path = Path(stored)
+    return path if path.is_absolute() else DATA_DIR / path
+
+
+def stored_path(path: Path) -> str:
+    """The form of `path` kept in the database."""
+    return path.relative_to(DATA_DIR).as_posix()
+
 
 # --- Claude Code CLI ----------------------------------------------------------------
 # All AI calls go through the locally installed `claude` CLI (Claude Code) in print mode, using
@@ -140,7 +158,7 @@ LINK_TIMEOUT = 20            # seconds per HTTP request
 LINK_MAX_REDIRECTS = 5
 LINK_MIN_TEXT_CHARS = 300    # less readable text than this means a login wall, paywall, or JavaScript-only page
 # An honest app user agent with a URL: Wikipedia and others refuse anonymous or fake-browser agents.
-LINK_USER_AGENT = "SageStudy/1.0 (personal desktop study app; +http://127.0.0.1) python-httpx"
+LINK_USER_AGENT = f"SageStudy/{VERSION} (personal desktop study app; +{REPO_URL}) python-httpx"
 BROWSER_USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                       "Chrome/130.0.0.0 Safari/537.36")
 MAX_LINKS_PER_REQUEST = 10
@@ -165,4 +183,16 @@ DEFAULT_SETTINGS = {
     "model_smart": DEFAULT_MODEL_SMART,
     "feedback_mode": "immediate",  # or "end"
     "theme": "light",
+    "quiz_prefs": None,          # the last quiz options picked (null = the built-in defaults)
+    "setup_complete": False,     # the first-run wizard was finished or skipped
+    "update_check": True,        # look for a newer release on launch
 }
+
+# --- Updates ---------------------------------------------------------------------
+UPDATE_CACHE_HOURS = 6
+
+# --- Browser fallback ---------------------------------------------------------------
+# Without a native window, the app quits once the tab has been gone this long. Browsers throttle
+# background tabs to about one timer per minute, so this has to be several times the heartbeat.
+BROWSER_HEARTBEAT_SECONDS = 20
+BROWSER_IDLE_EXIT_SECONDS = 300

@@ -1,0 +1,24 @@
+name: Something isn't working
+description: Report a problem with Sage Study
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What were you doing, what did you expect, and what did you see instead?
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic report
+      description: In the app, go to Settings > Help > Diagnostics and click "Copy diagnostic report", then paste it here. It contains no passwords, keys, documents, or study content. If the app won't open, tell us your operating system instead.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+      description: Please don't paste your course material, API keys, or anything private.

@@ -3,7 +3,7 @@ import io
 import pytest
 from PIL import Image
 
-from sage import ingest
+from sage import config, ingest
 from sage.errors import AppError
 
 
@@ -37,13 +37,13 @@ def pptx_bytes() -> bytes:
 def test_docx_extraction_keeps_headings_and_tables():
     up = ingest.save_upload("notes.docx", docx_bytes())
     assert up["kind"] == "text" and up["source_type"] == "docx"
-    text = open(ingest.db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"], encoding="utf-8").read()
+    text = config.data_path(ingest.db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"]).read_text(encoding="utf-8")
     assert "# Laplace Transforms" in text and "| 1 | 1/s |" in text
 
 
 def test_pptx_extraction_includes_slides_and_notes():
     up = ingest.save_upload("deck.pptx", pptx_bytes())
-    text = open(ingest.db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"], encoding="utf-8").read()
+    text = config.data_path(ingest.db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"]).read_text(encoding="utf-8")
     assert "## Slide 1" in text and "KCL" in text and "Speaker notes: Mention KVL" in text
 
 
@@ -54,7 +54,7 @@ def test_large_image_is_downscaled_and_rotated():
     up = ingest.save_upload("photo.JPG", buf.getvalue())
     row = ingest.db.query_one("SELECT * FROM uploads WHERE id = ?", (up["id"],))
     assert row["media_type"] == "image/jpeg"
-    assert max(Image.open(row["path"]).size) == 1568
+    assert max(Image.open(config.data_path(row["path"])).size) == 1568
 
 
 def text_pdf(pages: list[str]) -> bytes:
@@ -166,7 +166,7 @@ def test_too_large_file(monkeypatch):
 
 def test_cp1252_text_decodes():
     up = ingest.save_upload("old.txt", "caf\xe9 – 50\xb0C".encode("cp1252"))
-    text = open(ingest.db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"], encoding="utf-8").read()
+    text = config.data_path(ingest.db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"]).read_text(encoding="utf-8")
     assert text == "caf\xe9 – 50\xb0C"
 
 

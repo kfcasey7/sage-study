@@ -1,9 +1,8 @@
 """End-to-end API flow against a fake Claude."""
 from __future__ import annotations
 
-import pytest
 
-from sage import db, desktop
+from sage import config, db, desktop, runtime
 from sage.services import sessions as S
 
 from sage.errors import AppError
@@ -67,11 +66,43 @@ def test_guard_rejects_missing_header_and_foreign_host(fake_claude):
     from sage.app import create_app
 
     app = create_app()
-    with TestClient(app, base_url="http://127.0.0.1:8765") as c:
-        assert c.put("/api/settings", json={"theme": "dark"}).status_code == 403
+    token = {"x-sage-token": runtime.token}
+    with TestClient(app, base_url="http://127.0.0.1:8765", headers=token) as c:
+        assert c.put("/api/settings", json={"theme": "dark"}).status_code == 403  # no client header
         assert c.get("/api/settings").status_code == 200
-    with TestClient(app, base_url="http://evil.example:8765", headers={"x-sage-client": "1"}) as c:
-        assert c.get("/api/settings").status_code == 403
+    for base in ("http://evil.example:8765", "http://127.0.0.1:9999", "http://localhost:8765"):
+        with TestClient(app, base_url=base, headers={"x-sage-client": "1", **token}) as c:
+            assert c.get("/api/settings").status_code == 403
+
+
+def test_guard_needs_this_launchs_token(fake_claude):
+    from fastapi.testclient import TestClient
+    from sage.app import create_app
+
+    with TestClient(create_app(), base_url="http://127.0.0.1:8765", headers={"x-sage-client": "1"}, follow_redirects=False) as c:
+        assert c.get("/api/settings").status_code == 401
+        assert c.get("/api/settings", headers={"x-sage-token": "not-the-token"}).status_code == 401
+        assert c.get("/").status_code == 401
+        assert c.get("/launch?token=wrong").status_code == 401
+        assert c.get("/api/settings").status_code == 401
+
+        r = c.get(f"/launch?token={runtime.token}")
+        assert r.status_code == 303 and r.headers["location"] == "/"
+        cookie = r.headers["set-cookie"].lower()
+        assert "httponly" in cookie and "samesite=strict" in cookie
+        assert c.get("/api/settings").status_code == 200  # the cookie now stands in for the token
+        assert c.get("/").status_code == 200
+
+
+def test_guard_refuses_other_origins(client):
+    assert client.get("/api/settings", headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.get("/api/settings", headers={"origin": "null"}).status_code == 403
+    assert client.get("/api/settings", headers={"origin": "http://127.0.0.1:9999"}).status_code == 403
+    assert client.get("/api/settings", headers={"origin": "http://127.0.0.1:8765"}).status_code == 200
+
+
+def test_api_docs_are_off_outside_development(client):
+    assert "paths" not in client.get("/api/openapi.json").text
 
 
 def test_settings_models_and_cli_status(client, monkeypatch):
@@ -287,7 +318,7 @@ def test_delete_session_keeps_set_files_until_set_is_deleted(client, fake_claude
     up = upload_text(client)
     s = create(client, upload_ids=[up["id"]])
     next_q(client, s["id"])
-    path = db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"]
+    path = config.data_path(db.query_one("SELECT path FROM uploads WHERE id = ?", (up["id"],))["path"])
     set_id = s["study_set_id"]
     assert set_id
     assert client.delete(f"/api/sessions/{s['id']}").json() == {"ok": True}

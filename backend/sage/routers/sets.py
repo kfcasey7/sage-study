@@ -5,11 +5,17 @@ from pydantic import BaseModel, Field
 
 from .. import config, db
 from ..errors import AppError
-from ..services import breakdown, study_sets
+from ..services import breakdown, demo, study_sets
 from ..services import sources as Src
 from .sessions import session_view
 
 router = APIRouter(prefix="/api", tags=["study-sets"])
+
+
+@router.post("/demo")
+def load_demo() -> dict:
+    """The bundled sample Study Set behind "Try a demo"."""
+    return demo.load()
 
 
 # --- Sources (setup screen drafts, or a set's Append panel) -----------------------------------------

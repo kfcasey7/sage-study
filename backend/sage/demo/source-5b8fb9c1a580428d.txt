@@ -1,0 +1,54 @@
+[Page 1]
+ME 230 - Lecture Notes: The First Law of Thermodynamics
+Chapter 2 | Week 3
+1. Systems and State Functions
+A thermodynamic system is the region of space we analyze; everything else is the surroundings. A
+closed system exchanges energy but not mass with its surroundings; an open system (control
+volume) exchanges both.
+State functions depend only on the current equilibrium state of the system, not on how it got there.
+Internal energy U, enthalpy H, entropy S, pressure P, volume V, and temperature T are state
+functions. Heat Q and work W are path functions: their values depend on the process path between
+two states.
+2. The First Law of Thermodynamics
+For a closed system, energy is conserved: Delta U = Q - W, where Q is the heat added TO the
+system and W is the work done BY the system on its surroundings. (Some texts use W as work done
+ON the system and write Delta U = Q + W; always check the sign convention.)
+For a cycle the system returns to its initial state, so Delta U = 0 and the net heat added equals the
+net work done: Q_net = W_net.
+3. Work in Ideal-Gas Processes
+Boundary work is W = integral of P dV. For an ideal gas PV = nRT (R = 8.314 J/(mol K)).
+Isobaric (constant P): W = P (V2 - V1).
+Isochoric (constant V): W = 0, so Delta U = Q.
+Isothermal (constant T): Delta U = 0 for an ideal gas, and W = nRT ln(V2/V1) = Q.
+Adiabatic (Q = 0): P V^gamma = constant with gamma = cp/cv, and W = (P1 V1 - P2 V2)/(gamma -
+1) = -Delta U.
+Process Held constant Work W Heat Q
+Isobaric P P(V2 - V1) n cp Delta T
+Isochoric V 0 n cv Delta T
+Isothermal T nRT ln(V2/V1) W
+Adiabatic Q = 0 (P1V1 - P2V2)/(gamma-1) 0
+4. Enthalpy and Specific Heats
+Enthalpy is defined as H = U + PV. At constant pressure, the heat added equals the change in
+enthalpy: Q_p = Delta H.
+For an ideal gas: Delta U = n cv Delta T and Delta H = n cp Delta T, with cp - cv = R. For a
+
+[Page 2]
+monatomic ideal gas cv = (3/2)R and cp = (5/2)R, so gamma = 5/3; for a diatomic gas near room
+temperature cv = (5/2)R and gamma = 1.4.
+5. Heat Engines and Efficiency
+A heat engine takes heat Q_H from a hot reservoir, does work W, and rejects heat Q_C to a cold
+reservoir. Its thermal efficiency is eta = W / Q_H = 1 - Q_C / Q_H.
+No engine operating between reservoirs at T_H and T_C (in kelvin) can beat the Carnot efficiency
+eta_Carnot = 1 - T_C / T_H. A real automotive engine is typically 25-35% efficient.
+The Otto cycle (idealized gasoline engine) consists of: (1) adiabatic compression, (2)
+constant-volume heat addition, (3) adiabatic expansion (power stroke), and (4) constant-volume heat
+rejection. Its efficiency is eta_Otto = 1 - 1 / r^(gamma - 1), where r = V_max / V_min is the
+compression ratio.
+6. Worked Example
+Worked example. One mole of an ideal diatomic gas expands isothermally at 300 K from 10 L to 20
+L.
+Step 1: Isothermal, so Delta U = 0.
+Step 2: W = nRT ln(V2/V1) = (1)(8.314)(300) ln(2) = 1729 J.
+Step 3: First law: Q = Delta U + W = 1729 J of heat is absorbed.
+Common mistake: using V2 - V1 instead of the ratio V2/V1, or forgetting that temperature must be in
+kelvin.

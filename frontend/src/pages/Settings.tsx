@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { CheckCircle2, RefreshCw, Terminal, XCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, Download, PlayCircle, RefreshCw, Stethoscope, Terminal, XCircle } from "lucide-react";
 import { api, asApiError } from "../lib/api";
 import { useApp } from "../lib/app-context";
 import type { ApiErrorBody, Settings as SettingsT } from "../lib/types";
@@ -17,9 +18,11 @@ function StatusRow({ ok, label, detail }: { ok: boolean; label: string; detail?:
 }
 
 export default function Settings() {
-  const { settings, setSettings, cli, refreshCli, toggleTheme, theme } = useApp();
+  const { settings, setSettings, cli, refreshCli, toggleTheme, theme, toast, bumpHistory } = useApp();
+  const navigate = useNavigate();
   const [error, setError] = useState<ApiErrorBody | null>(null);
   const [checking, setChecking] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   if (!settings) return <Loading message="Loading settings…" rotate={false} />;
   const s = settings.settings;
@@ -37,6 +40,28 @@ export default function Settings() {
     setChecking(true);
     await refreshCli(true);
     setChecking(false);
+  }
+
+  async function checkForUpdates() {
+    setCheckingUpdate(true);
+    try {
+      const u = await api.updates(true);
+      if (u.status === "available") toast(`Version ${u.latest} is available. Restart the app to see the update banner, or get it from the releases page.`);
+      else if (u.status === "current") toast("You're on the newest version.", "success");
+      else toast("Couldn't reach GitHub to check. Try again when you're online.", "error");
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
+  async function loadDemo() {
+    try {
+      const demo = await api.loadDemo();
+      bumpHistory();
+      navigate(`/sets/${demo.id}`);
+    } catch (e) {
+      setError(asApiError(e).toBody());
+    }
   }
 
   return (
@@ -58,8 +83,8 @@ export default function Settings() {
             : <span className="badge incorrect">Needs attention</span>}
         </div>
         <p className="muted">
-          Sage Study runs every AI request through the Claude Code CLI on this computer, using your Claude
-          subscription login. No API key is used and nothing is billed to an API account.
+          {settings.app.name} works with Claude Code, which you install yourself. Every AI request runs through it on this
+          computer, using your own Claude sign-in, and counts toward your plan's usage limits. This app never sees your sign-in.
         </p>
         {cli && (
           <div>
@@ -75,9 +100,9 @@ export default function Settings() {
               <div>{cli.message}</div>
               {!cli.ready && (
                 <ol className="small" style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-                  {!cli.installed && <li>Install Claude Code: <a href="https://claude.com/claude-code" target="_blank" rel="noreferrer">claude.com/claude-code</a></li>}
+                  {!cli.installed && <li>Install Claude Code: <a href={settings.app.install_docs_url} target="_blank" rel="noreferrer">Anthropic's install instructions</a></li>}
                   <li>Open a terminal and run <code>claude</code></li>
-                  <li>Log in with your Claude Pro account (type <code>/login</code> if it doesn't prompt you), then click Check again.</li>
+                  <li>Sign in with your Claude account (type <code>/login</code> if it doesn't prompt you), then click Check again.</li>
                 </ol>
               )}
             </div>
@@ -134,8 +159,32 @@ export default function Settings() {
 
       <YoutubeKeyCard />
 
+      <section className="card">
+        <h2><Download size={18} style={{ verticalAlign: -3, marginRight: 8 }} />Updates</h2>
+        <label className="row" style={{ gap: 8, marginBottom: 12 }}>
+          <input type="checkbox" checked={s.update_check} onChange={(e) => save({ update_check: e.target.checked })} />
+          Check for a newer version when the app opens
+        </label>
+        <p className="muted small">This only asks GitHub for the newest version number. Nothing updates until you click, and the app has no analytics or tracking.</p>
+        <button className="btn sm" onClick={checkForUpdates} disabled={checkingUpdate}>
+          {checkingUpdate ? <span className="spinner" /> : <RefreshCw size={14} />} Check for updates
+        </button>
+      </section>
+
+      <section className="card">
+        <h2><Stethoscope size={18} style={{ verticalAlign: -3, marginRight: 8 }} />Help</h2>
+        <div className="row">
+          <Link className="btn sm" to="/settings/diagnostics"><Stethoscope size={14} /> Diagnostics</Link>
+          <Link className="btn sm" to="/welcome"><RefreshCw size={14} /> Run setup again</Link>
+          <button className="btn sm" onClick={loadDemo}><PlayCircle size={14} /> Load the demo Study Set</button>
+        </div>
+      </section>
+
       <p className="muted small" style={{ marginTop: 20 }}>
         {settings.app.name} {settings.app.version} · Data is stored locally in <code>{settings.app.data_dir}</code>
+      </p>
+      <p className="muted small">
+        Unofficial: not affiliated with or endorsed by Anthropic. <a href={settings.app.repo_url} target="_blank" rel="noreferrer">Source code and license</a>
       </p>
     </div>
   );

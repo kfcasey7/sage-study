@@ -1,9 +1,39 @@
+# Python
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
 .pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Frontend (the built UI in backend/sage/web IS committed: end users never need Node)
 frontend/node_modules/
 frontend/dist/
+*.tsbuildinfo
+
+# Pins live in constraints.txt
+uv.lock
+
+# Build output
+build/
+dist/
+*.spec.bak
+
+# Personal data and secrets: nothing below belongs in the repo
+.env
+.env.*
+*.db
+*.db-wal
+*.db-shm
+*.db.bak*
+*.sqlite
+*.sqlite3
+uploads/
+llm_tmp/
 *.log
-.DS_Store
 samples/e2e-study-guide.md
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:  # Actions tab > Release > Run workflow: build and test the packages without publishing anything
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Package (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows, os: windows-latest }
+          - { name: macos-arm64, os: macos-latest }
+          - { name: macos-intel, os: macos-15-intel }
+          - { name: linux, os: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: The tag matches the app's version
+        shell: bash
+        run: |
+          version=$(python -c "import re; print(re.search(r'__version__ = \"(.+)\"', open('backend/sage/__init__.py').read()).group(1))")
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match version $version"; exit 1
+          fi
+          echo "SAGE_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Install
+        run: |
+          python -m pip install -r constraints.txt
+          python -m pip install "pyinstaller>=6.10"
+      - name: Build
+        run: python -m PyInstaller --noconfirm --clean packaging/sage_study.spec
+      - name: Check that the build starts
+        shell: bash
+        run: |
+          data=$(mktemp -d)
+          case "${{ matrix.name }}" in
+            windows) dist/SageStudy/SageStudy.exe --data-dir "$data" --smoke-test ;;
+            macos*) dist/SageStudy.app/Contents/MacOS/SageStudy --data-dir "$data" --smoke-test ;;
+            linux) dist/SageStudy/SageStudy --data-dir "$data" --smoke-test ;;
+          esac
+          test -f "$data/sage.db"
+      - name: Windows installer
+        if: matrix.name == 'windows'
+        run: |
+          choco install innosetup --no-progress -y
+          iscc packaging\windows\sage-study.iss
+          New-Item -ItemType Directory -Force out | Out-Null
+          Move-Item dist\installer\*.exe out\
+      - name: macOS zip
+        if: startsWith(matrix.name, 'macos')
+        run: |
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent dist/SageStudy.app "out/SageStudy-$SAGE_VERSION-${{ matrix.name }}.zip"
+      - name: Linux tarball
+        if: matrix.name == 'linux'
+        run: |
+          mkdir -p out
+          cp packaging/linux/README.txt dist/SageStudy/
+          tar -czf "out/SageStudy-$SAGE_VERSION-linux-x64.tar.gz" -C dist SageStudy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Publish the release
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/release_notes.py "$GITHUB_REF_NAME" > notes.md
+          gh release create "$GITHUB_REF_NAME" artifacts/* --title "Sage Study $GITHUB_REF_NAME" --notes-file notes.md

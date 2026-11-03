@@ -22,7 +22,6 @@ const Ctx = createContext<AppState | null>(null);
 
 function applyTheme(theme: "light" | "dark") {
   document.documentElement.dataset.theme = theme;
-  try { localStorage.setItem("sage-theme", theme); } catch { /* storage unavailable */ }
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {

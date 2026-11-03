@@ -17,7 +17,12 @@ export interface Settings {
   model_smart: string;
   feedback_mode: "immediate" | "end";
   theme: "light" | "dark";
+  quiz_prefs: QuizOptionsPrefs | null;
+  setup_complete: boolean;
+  update_check: boolean;
 }
+
+export interface QuizOptionsPrefs { types: string[]; difficulty: number; adaptive: boolean; count: number; languages: string[] }
 
 export interface CliStatus {
   installed: boolean;
@@ -43,7 +48,28 @@ export interface SettingsPayload {
     max_file_mb: number;
     extensions: string[];
   };
-  app: { name: string; version: string; data_dir: string };
+  app: {
+    name: string; version: string; data_dir: string; repo_url: string; install_docs_url: string;
+    install_kind: "installer" | "packaged" | "source"; first_run: boolean;
+    window_mode: "window" | "browser"; fallback_reason: string | null; heartbeat_seconds: number;
+  };
+}
+
+export interface Diagnostics {
+  items: { label: string; value: string }[];
+  report: string;
+  data_dir: string;
+}
+
+export interface UpdateState {
+  status: "current" | "available" | "unknown";
+  current: string;
+  latest: string | null;
+  notes: string;
+  url: string;
+  install_kind: "installer" | "packaged" | "source";
+  can_self_update: boolean;
+  command: string | null;
 }
 
 export interface UploadInfo {

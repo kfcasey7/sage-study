@@ -6,8 +6,8 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <title>Sage Study</title>
     <script>
-      // Apply the saved theme before first paint to avoid a flash.
-      try { document.documentElement.dataset.theme = localStorage.getItem("sage-theme") || "light"; } catch (e) {}
+      // The server fills in the saved theme, so the first paint is already in the right colors.
+      document.documentElement.dataset.theme = "__SAGE_THEME__".startsWith("__") ? "light" : "__SAGE_THEME__";
     </script>
   </head>
   <body>

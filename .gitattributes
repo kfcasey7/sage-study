@@ -1,7 +1,11 @@
 * text=auto eol=lf
 *.ps1 text eol=crlf
 *.bat text eol=crlf
+*.command text eol=lf
+*.sh text eol=lf
 *.png binary
 *.ico binary
 *.icns binary
 *.pdf binary
+# The built UI is generated: keep it byte-exact and out of diffs.
+backend/sage/web/** -text -diff linguist-generated

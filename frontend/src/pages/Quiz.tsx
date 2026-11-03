@@ -263,8 +263,8 @@ export default function Quiz() {
               <Video size={15} /> Find video
             </button>
             <button className="btn sm ghost" onClick={() => { setChatOpen((o) => !o); setVideosOpen(false); }} aria-pressed={chatOpen}
-              title="Chat with Claude about this question">
-              <MessageCircleQuestion size={15} /> Ask Claude
+              title="Chat about this question (uses Claude Code)">
+              <MessageCircleQuestion size={15} /> Ask about this
             </button>
           </div>
 

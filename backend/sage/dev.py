@@ -11,13 +11,14 @@ import os
 
 import uvicorn
 
-from . import runtime
+from . import config, runtime
 from .app import create_app
 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    runtime.port = int(os.environ.get("SAGE_PORT", "8765"))
+    runtime.port = int(os.environ.get("SAGE_PORT", str(config.DEV_PORT)))
+    runtime.auth_required = False  # the Vite dev server and test scripts have no launch token
     if os.environ.get("SAGE_FAKE_CLAUDE") == "1":
         from .fake_claude import install_demo
 

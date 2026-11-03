@@ -1,245 +1,164 @@
 # Sage Study
 
-A desktop study assistant that uses Claude to quiz you on your own course material, grade your answers, and
-write a study guide covering whatever you got wrong. Every AI request goes through the **Claude Code CLI**
-installed on your computer, using your **Claude subscription login** (e.g. Pro). There is no API key and no API
-billing; requests count toward your plan's normal usage limits.
+Turn your notes, slides, and links into quizzes, study guides, and video playlists. Sage Study is a desktop app that **works with Claude Code**, using your own Claude account.
 
-- Organize material into **Study Sets**: prompts plus sources. Sources can be files (PDF, Word, PowerPoint,
-  text/Markdown, or photos of notes) and **links**: web pages, PDF links, YouTube videos (by transcript), and
-  public Google Docs/Slides/Sheets.
-- A **Material Breakdown** for every set: an overview, subtopics with key concepts, KaTeX formulas, difficulty
-  and the sources they came from, a Mermaid map of how they relate, and notes on anything you asked for that
-  the sources don't cover. Pick subtopics, then generate a study guide, start a quiz, or build a **YouTube
-  playlist**. Append prompts and sources at any time; the breakdown merges them and keeps your quiz results
-  attached.
-- 13 question types: multiple choice, select-all, true/false, fill-in-the-blank, matching, ordering, short and
-  long response, free response, math with step-by-step LaTeX work, code (Monaco editor), error analysis, and
-  applied engineering scenarios.
-- Difficulty 1–5 with optional adaptive mode, confidence ratings, and a "Skip / I don't know" button.
-- Objective questions are graded instantly on your machine. Written answers are graded by Claude against a
-  rubric written alongside each question.
-- Results dashboard with per-subtopic and per-type scores. Weak areas are subtopics under 70%, or ones where
-  you were wrong with high confidence.
-- A personalized study guide for weak areas, with explanations, KaTeX formulas, Mermaid diagrams or charts,
-  worked examples, your specific mistakes, and practice questions. Export it to PDF or Markdown.
-- **Find video** on any quiz question: 1–3 YouTube explanations in a side panel (noted as "used help" on your
-  results; grades don't change). Every video comes from a real search and is checked to exist; Claude never
-  writes a video link.
-- History of your Study Sets with mastery trends per subject, and one-click retests of your weak areas.
+> **Unofficial.** Sage Study isn't affiliated with or endorsed by Anthropic. "Claude" and "Claude Code" are Anthropic's trademarks.
 
-Everything runs locally. The app is a single-user program that only talks to Claude through the `claude`
-command on this machine.
+<p align="center"><img src="docs/images/breakdown.png" alt="A Material Breakdown listing the subtopics of a thermodynamics study set" width="820"></p>
 
-## Setup
+## What you need
 
-**Requirements:**
+- **Claude Code**, installed by you from Anthropic: [install instructions](https://code.claude.com/docs/en/setup).
+- **A Claude plan that includes Claude Code.** The free plan doesn't. See [Anthropic's list of plans](https://code.claude.com/docs/en/setup#authenticate).
+- Windows 10 or newer, macOS 13 or newer, or Linux (best-effort).
 
-- Python 3.11+
-- Node.js 18+ (LTS recommended). Node is only needed to build the interface.
-- [Claude Code](https://claude.com/claude-code), installed and logged in with your Claude account (see below).
+Everything you do in the app counts against **your own plan's usage limits**. It's for personal use.
 
-### Windows
+Before you use it, please know that Anthropic restricts how Claude subscriptions may be used with third-party software, and that those rules apply to your account. Read [Anthropic's authentication and credential-use terms](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use) and decide for yourself. This project doesn't claim Anthropic has approved it.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File setup.ps1
-```
+## Install
 
-### macOS / Linux
+Non-technical? [INSTALL.md](INSTALL.md) is a one-page guide you can follow, or send to a friend.
 
-```bash
-./setup.sh
-```
+**Windows**
+1. Click the green **Code** button on this page, then **Download ZIP**, and unzip it.
+2. Double-click **Install.bat**. If Windows warns you, click **More info**, then **Run anyway**.
+3. Open **Sage Study** from your Desktop.
 
-The setup script:
+**macOS**
+1. Open Terminal (press Cmd+Space, type Terminal, press Return).
+2. Paste this line and press Return: `curl -fsSL https://raw.githubusercontent.com/kfcasey7/sage-study/main/install.sh | sh`
+3. Open **Sage Study** from your Desktop or Applications.
 
-1. creates a virtual environment in `.venv` and installs the Python dependencies,
-2. generates the app icon (`assets/icon/`),
-3. builds the React interface (`frontend/dist`),
-4. checks that Claude Code is on your PATH and logged in, and tells you what to do if it isn't,
-5. creates a desktop shortcut:
-   - **Windows:** `Sage Study.lnk` on the Desktop (OneDrive-redirected Desktops are handled) and in the Start
-     Menu. It runs `pythonw`, so no terminal window opens.
-   - **macOS:** `Sage Study.app` on the Desktop.
-   - **Linux:** `sage-study.desktop` on the Desktop and in `~/.local/share/applications`.
+**Linux**
+1. Open a terminal.
+2. Run `curl -fsSL https://raw.githubusercontent.com/kfcasey7/sage-study/main/install.sh | sh`
+3. Open **Sage Study** from your applications menu. It opens in your browser unless a desktop window library is available.
 
-Options: `--no-shortcut`, `--skip-frontend`.
+Prefer a regular download? The [Releases page](https://github.com/kfcasey7/sage-study/releases) has a Windows installer, a Mac app, and a Linux tarball. They aren't code-signed, so read [why your computer warns you](#why-does-windows-or-macos-warn-me).
 
-**Linux note:** pywebview needs a GUI toolkit. On Debian/Ubuntu install
-`sudo apt install python3-gi gir1.2-webkit2-4.1`, then
-`.venv/bin/pip install pygobject` (or `pip install pywebview[qt]` for Qt).
+If you're technical: `uv tool install git+https://github.com/kfcasey7/sage-study`, then run `sage-study`.
 
-## Setting up Claude Code
+When the app first opens, a short setup checks Claude Code and offers a demo you can try without uploading anything.
 
-1. Install Claude Code: <https://claude.com/claude-code>. On Windows, the native installer puts `claude` in
-   `%USERPROFILE%\.local\bin`.
-2. Open a terminal, run `claude`, and log in with your **Claude Pro** account. Type `/login` if it doesn't
-   prompt you. Then `/exit`.
-3. Check: `claude auth status --text` should show you as logged in with your Claude account.
-4. In Sage Study, **Settings → Claude Code status** should show **Ready**. Click **Check again** after
-   logging in.
+<p align="center"><img src="docs/images/welcome.png" alt="The first-run setup with green checks for Claude Code" width="620"></p>
 
-How the app calls it: for every request it runs `claude -p` with JSON output and these restrictions.
+## What it does
 
-- **No API billing.** Every `ANTHROPIC_*` environment variable (including `ANTHROPIC_API_KEY`) and the
-  Bedrock/Vertex/Foundry switches are removed from the child process, so the CLI can only use your
-  subscription login.
-- **No tools.** `--tools ""` turns off all built-in tools. `--restricted` blocks shells and code execution.
-  `--strict-mcp-config` and `--setting-sources ""` ignore your MCP servers and your Claude Code settings or
-  hooks, so the model can't edit files, run commands, browse, or reach your connected accounts.
-- **Images and scanned PDFs** are the one exception. For requests that include them, Claude gets only the
-  read-only `Read` tool, confined to a temporary folder holding copies of those files. The folder is
-  deleted after each call.
-- **Timeouts.** Every call has one: 2 to 7 minutes depending on the task.
+- **Study Sets:** add files (PDF, Word, PowerPoint, text, photos of notes) and links (web pages, PDF links, YouTube videos, public Google Docs, Slides, and Sheets).
+- **Material Breakdown:** an overview, subtopics with key concepts and formulas, a map of how they relate, and notes on anything your sources don't cover. Pick subtopics, then make a study guide, a quiz, or a playlist.
+- **Quizzes:** 13 question types, including math with step-by-step work and code in a real editor. Difficulty levels, an adaptive mode, and confidence ratings. Objective questions are graded on your computer; written answers are graded by Claude against a rubric.
+- **Results and study guides:** scores by subtopic, your weak areas, and a personal guide with worked examples, diagrams, your specific mistakes, and practice questions. Export to PDF or Markdown.
+- **Video playlists:** YouTube explanations for each subtopic. Every video comes from a real search and is checked to exist.
+- **History:** your sets, mastery trends by subject, and one-click retests of weak areas.
 
-## Using it
+<p align="center">
+  <img src="docs/images/quiz.png" alt="A multiple choice quiz question" width="410">
+  <img src="docs/images/results.png" alt="Quiz results with scores by subtopic" width="410">
+</p>
+<p align="center">
+  <img src="docs/images/guide.png" alt="A study guide section with formulas" width="410">
+  <img src="docs/images/playlist.png" alt="A video playlist grouped by subtopic" width="410">
+</p>
 
-1. **New study set:** describe what to cover and add files and links. Each source shows *Processing*,
-   *Ready*, or *Couldn't read* with the reason (pages behind a login or paywall, videos without captions,
-   Google files that aren't shared publicly). Remove it or upload the file instead; one bad link never stops
-   the set. Identical files and links are only added once.
-2. The **Material Breakdown** appears in a minute or two. Every subtopic is selected; untick any you want to
-   leave out. If you've taken quizzes on the set, each subtopic shows your mastery.
-3. Choose an action for the selected subtopics:
-   - **Generate study guide**: explanations, formulas, diagrams or charts, worked examples, and practice,
-     using your quiz history on each subtopic when you have one.
-   - **Start quiz**: pick question types, difficulty, adaptive mode, and the number of questions. Answer one
-     question at a time; feedback appears after each answer or at the end (set in **Settings**). **Results**
-     works as before, with the weak-areas study guide and **Retest weak areas**, and links back to the set.
-   - **Build video playlist**: 1–3 videos per subtopic with a line on why each is relevant. Mark them
-     watched, replace one, find more, open them all as a YouTube playlist, or copy the links. Videos play in
-     the app (or in your browser).
-4. **Append to this study set** adds a prompt ("also cover chapter 7") and/or more files and links, then
-   **Update breakdown** merges them in. Existing subtopics keep their place and your results; new ones are
-   marked **New** and changed ones **Updated**. Every prompt stays in the prompt history.
+## Where your data goes
 
-Study Sets from before this version were created automatically, one per earlier session (retests join
-their original's set). They show their old subtopics right away; **Build full breakdown** adds the rest.
-
-Only one copy of the app runs at a time. Launching it again brings the existing window to the front.
-
-**If you hit your usage limit,** the app says "Claude usage limit reached — try again after it resets." All
-progress is saved after every answer. Reopen the session later from **History** (or **Recent** in the
-sidebar) to keep going. Answers that couldn't be graded get a **Grade now** button.
-
-## Models and usage
-
-Sage uses the CLI's model aliases, and you can change them in **Settings**:
-
-| Task | Default |
+| What | Where it goes |
 |---|---|
-| Mapping subtopics, writing questions | **Haiku** (fast, light on usage limits) |
-| Grading written, math, and code answers; Material Breakdowns; study guides; diagram fixes | **Sonnet** |
-| YouTube search queries and choosing videos | **Haiku** |
+| Your study content, when you use an AI feature | To Anthropic, through **your own** Claude Code and account, under your agreement with Anthropic |
+| Links you paste | The app fetches those pages directly from the sites they're on. YouTube links also read the video's transcript from YouTube |
+| Video searches | With a YouTube key, to Google's YouTube API. Without one, through Claude Code's web search |
+| Video playback and checks | The player loads from YouTube; each video is checked with YouTube's public lookup |
+| Update checks | A request to GitHub for the newest version number. You can turn this off in Settings |
+| **Everything else** | **Stays on your computer.** There's no account, server, analytics, or tracking |
 
-Objective questions (multiple choice, true/false, select-all, matching, ordering, and exactly matching
-fill-in-the-blanks) are graded on your computer with no AI call. The results screen shows how many AI calls
-a session made and how long they took. The app pre-generates upcoming questions in the background while
-you answer, so waiting is mostly limited to the start of a session.
+## FAQ
 
-**Documents:**
+### Do I need a paid plan?
+Yes. You need a Claude plan that includes Claude Code, and the free plan doesn't. A YouTube key is optional and free. The app itself is free. Your use counts against your plan's limits, so a quiz or guide can use up part of your allowance.
 
-- **Text** from PDF, Word, PowerPoint, and text/Markdown files is extracted locally and sent inline.
-- **Images and scanned PDFs** (too little extractable text) are read by Claude Code directly.
-- **Long material:** each call sends about 120,000 characters. Longer material is split into chunks, and
-  each request gets the chunks most relevant to the subtopic being asked about. The quiz and results screens
-  say when this happened.
+### Where is my data?
+In a folder on your computer, separate from the app. **Settings** shows the exact location.
 
-## Rebuilding the shortcut
+- Windows: `%LOCALAPPDATA%\SageStudy`
+- macOS: `~/Library/Application Support/SageStudy`
+- Linux: `~/.local/share/SageStudy`
 
-If you move the project folder, or the shortcut is deleted:
+To keep it somewhere else, run the app with `--data-dir <folder>`.
 
-```bash
-.venv/Scripts/python scripts/create_shortcut.py      # Windows
-.venv/bin/python scripts/create_shortcut.py          # macOS / Linux
-```
+### How do I update?
+When a new version is out, a small banner appears with what's new and an update button. Nothing updates until you click. You can also use **Settings > Updates > Check for updates**, or run the installer from a newer download. Your study data is kept.
 
-`--remove` deletes it. To regenerate the icon, run `scripts/make_icons.py`.
+### How do I uninstall?
+- **Windows:** Start Menu > **Uninstall Sage Study**, or double-click `Uninstall.bat`. If you used the Setup download, use Windows' **Installed apps** list.
+- **macOS:** double-click `Uninstall.command`, or run `sh ~/Library/Application\ Support/SageStudy-App/uninstall.sh`. If you used the downloaded app, drag it to the Trash.
+- **Linux:** run `sh ~/.local/share/sage-study-app/uninstall.sh`. If you used the tarball, delete its folder.
 
-## Customizing the prompts
+The uninstallers ask before deleting your study data. They don't touch Claude Code. With a downloaded Mac app or Linux tarball, your data stays in the folder listed above until you delete it.
 
-Every prompt sent to Claude lives in `backend/sage/prompts/`:
+### Why does Windows or macOS warn me?
+Sage Study isn't code-signed, because signing certificates cost money, so your computer can't check who published it. These warnings **will** appear. Only continue if you got the app from this project's page and trust it.
 
-| File | Used for |
+**Windows (SmartScreen):** you may see a blue box saying "Windows protected your PC", with only a **Don't run** button. Click **More info**, and a **Run anyway** button appears. Click that.
+
+**macOS (Gatekeeper):** the Mac says it can't verify the app, and offers only **Done** or **Move to Trash**. Choose **Done**. Then open **System Settings > Privacy & Security**, scroll down to **Security**, click **Open Anyway** next to the message about the app, and confirm with **Open**. You only need to do this once ([Apple's instructions](https://support.apple.com/en-us/102445)). The Terminal install above avoids this, because the Terminal doesn't mark what it downloads.
+
+### Is this made by Anthropic?
+No. It's an unofficial personal project that uses Claude Code, which you install separately.
+
+## Troubleshooting
+
+Start with **Settings > Help > Diagnostics**. Its report is safe to share, and it contains no passwords, keys, documents, or study content.
+
+<p align="center"><img src="docs/images/diagnostics.png" alt="The Diagnostics page with a Copy diagnostic report button" width="620"></p>
+
+| Problem | What to do |
 |---|---|
-| `system.py` | Shared system prompt + material preamble |
-| `topic_map.py` | Splitting the material into subtopics |
-| `generate.py` | Question writing, with per-type guidance (`TYPE_GUIDANCE`) and difficulty levels |
-| `grade.py` | Rubric grading, with per-type notes for math, code, and error analysis |
-| `study_guide.py` | Study guide sections, plus Mermaid diagram repair |
-
-**Links** are read by the app itself, not by Claude: the main text of web pages (trafilatura, with math kept
-as LaTeX), YouTube transcripts (youtube-transcript-api), Google export URLs, and linked PDFs or Office files.
-Only public `http(s)` addresses are fetched.
-
-**YouTube.** Without a key, Sage finds videos with one Claude Code call that may use only the WebSearch tool,
-limited to youtube.com. The app reads the actual search results and drops any video that wasn't in them.
-With a free **YouTube Data API key** (Settings → YouTube videos; kept in Windows Credential Manager), the
-app searches with `search.list` and `videos.list` instead (lengths, channels, and view counts; results cached
-for a week), and Claude only ranks the returned candidates by id. Either way, every video is checked with
-YouTube's oEmbed endpoint before it's shown.
+| "Claude Code not found" | Follow [Anthropic's install instructions](https://code.claude.com/docs/en/setup), then click **Check again**. If you just installed it, restart the app |
+| "Claude Code isn't logged in" | Open a terminal, type `claude`, and follow the steps to sign in. Then click **Check again** |
+| "Usage limit reached" | That's your Claude plan's limit. Your progress is saved, so come back after it resets |
+| A link couldn't be read | It may need a login, or load only with JavaScript. Save the page as a PDF and upload that instead. For Google files, share as "Anyone with the link" |
+| No internet | AI features and links need a connection. Your saved work still opens |
+| The app opened in my browser | Its own window couldn't start. Everything still works. On Windows, installing Microsoft's [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) usually fixes this |
+| The installer fails | Check your internet connection and run it again, which is safe. Antivirus software sometimes blocks downloads, so try pausing it |
+| Nothing opens | Look at `sage.log` in your data folder, and include the end of it in a [bug report](https://github.com/kfcasey7/sage-study/issues/new/choose) after checking it for anything private |
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and rules.
+
 ```bash
-# Backend tests (schemas, grading, mastery, ingest, the CLI wrapper with a mocked subprocess, and the
-# full app flow against a fake Claude)
-.venv/Scripts/python -m pytest
+uv sync --group dev
+uv run pytest                          # tests, with Claude Code mocked
+uv run sage-study                      # run the app from your checkout
 
-# Run the backend alone at http://127.0.0.1:8765 (serves the built UI)
-cd backend && ../.venv/Scripts/python -m sage.dev
+# UI work: the backend without a window (no launch token), then Vite with hot reload
+cd backend && SAGE_FAKE_CLAUDE=1 uv run python -m sage.dev     # canned responses, no Claude Code calls
+cd frontend && npm install && npm run dev
 
-# Demo mode: canned responses, no Claude Code calls. Handy for UI work.
-SAGE_FAKE_CLAUDE=1 ../.venv/Scripts/python -m sage.dev
-
-# Frontend with hot reload (proxies /api to the backend above)
-cd frontend && npm run dev
-
-# Live end-to-end checks through the real CLI (use some of your plan's usage; port: see instance.json)
-.venv/Scripts/python scripts/e2e_live.py --url http://127.0.0.1:<port>   # 3 questions + study guide
-.venv/Scripts/python scripts/e2e_sets.py --url http://127.0.0.1:<port>   # Study Set: PDF + links, breakdown,
-                                                                         # append, guide, playlist, quiz
+python scripts/build_frontend.py       # rebuild the UI that ships in backend/sage/web
+python scripts/smoke_install.py        # the full installer cycle in a throwaway folder
+python scripts/build_demo.py           # regenerate the demo set (uses your plan)
 ```
-
-On macOS/Linux use `.venv/bin/python` instead of `.venv/Scripts/python`.
-
-### Layout
 
 ```
 backend/sage/
-  app.py              FastAPI app, local-only guard, static frontend
-  main.py             desktop entry: single instance, server thread, pywebview window
-  llm_client.py       the only AI entry point: runs `claude -p`, schema-validated JSON, retries, errors
-  ingest.py           uploads: PDF/DOCX/PPTX text extraction, images, chunking long material
-  migrations.py       versioned data migrations (v1: Study Sets), with a backup first
-  secrets.py          the YouTube API key in the OS credential store (keyring)
-  prompts/            every prompt (see above)
-  schemas/            JSON schemas + Pydantic validation for questions, grades, topic map, study guide
-  services/           generation, grading (local + Claude), mastery, results, study guide, export,
-                      study_sets, sources + linkfetch (links), breakdown (+ merge), youtube
-frontend/src/
-  pages/              New study set, Breakdown, Quiz, Results, Study guide, Playlist, History, Settings
-  answers/            one input component per question type (+ Monaco code editor)
-  components/         Markdown/KaTeX, Mermaid, charts, shared UI
-scripts/              setup, icons, shortcut, sample PDF, live E2E
+  cli.py          command-line entry point (--data-dir, --check, --smoke-test)
+  main.py         desktop startup: single instance, server thread, window or browser
+  app.py          FastAPI app and the local-only guard
+  llm_client.py   the only AI entry point: runs `claude -p` locked down, validates JSON, retries
+  shortcuts.py    desktop and app-menu shortcuts
+  migrations.py   versioned data migrations, with a backup first
+  prompts/        every prompt sent to Claude
+  services/       generation, grading, study guides, sources, YouTube, demo, updates
+  web/            the prebuilt UI (generated)
+frontend/src/     the React UI
+installer/        the Windows installer's PowerShell scripts and the updaters
+packaging/        PyInstaller and Inno Setup recipes for the release downloads
 ```
 
-App data (database, uploads, log) lives in `%LOCALAPPDATA%\SageStudy` on Windows,
-`~/Library/Application Support/SageStudy` on macOS, and `~/.local/share/SageStudy` on Linux.
-Set `SAGE_DATA_DIR` to use a different folder. If the app won't start, check `sage.log` there.
+**How AI calls work.** Each request runs `claude -p` with JSON output, a schema, and a timeout. `ANTHROPIC_*` and third-party-provider variables are removed from its environment. `--tools ""`, `--restricted`, `--strict-mcp-config`, and `--setting-sources ""` turn off shells, file tools, MCP servers, your settings, and hooks. See [SECURITY.md](SECURITY.md).
 
-## How it works
+## License
 
-- **One wrapper.** `backend/sage/llm_client.py` is the only module that calls the AI. Each request is
-  `claude -p --output-format json --model <alias> --system-prompt … --json-schema …` plus the safety flags
-  above, with the prompt sent on stdin. The CLI's `--json-schema` returns schema-checked output. The app
-  then validates it again with Pydantic, which also checks things a JSON schema can't (answer indices in
-  range, the `{{blank}}` count matching the answers, and so on). It retries up to twice with the
-  validator's error message.
-- **Turn limits.** The installed CLI has no max-turns flag. Calls have no tools at all, only `Read` on a
-  few files, or (video search without an API key) only `WebSearch` with no files, so there's little to loop
-  on, and every call has a hard timeout.
-- **Errors** are mapped to clear messages: Claude Code missing, not logged in, usage limit reached,
-  timeout, refusal, and unusable output.
-- **Security.** The backend listens only on 127.0.0.1. It rejects foreign `Host` headers (DNS rebinding) and
-  any write without the app's custom header (cross-site requests).
+[MIT](LICENSE). Third-party licenses, including KaTeX, Monaco, Mermaid, and Recharts, are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

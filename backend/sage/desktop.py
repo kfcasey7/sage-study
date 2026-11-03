@@ -6,6 +6,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,25 @@ def restore_win32() -> bool:
     user32.ShowWindow(hwnd, 9 if user32.IsIconic(hwnd) else 5)  # SW_RESTORE / SW_SHOW
     user32.SetForegroundWindow(hwnd)
     return True
+
+
+def heartbeat() -> None:
+    """Browser mode: the tab is still open."""
+    from . import runtime
+
+    runtime.last_heartbeat = time.monotonic()
+
+
+def request_quit() -> None:
+    """Close the app: the window if there is one, otherwise end the browser-mode wait in main.py."""
+    from . import runtime
+
+    runtime.stop_requested = True
+    if window is not None:
+        try:
+            window.destroy()
+        except Exception:  # noqa: BLE001
+            log.exception("could not close the window")
 
 
 def focus() -> bool:
